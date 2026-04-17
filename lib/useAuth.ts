@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from './supabase'
-import { ADMIN_EMAIL, ADMIN_DISPLAY_NAME, isAdmin } from './config'
+import { ADMIN_DISPLAY_NAME, isAdmin } from './config'
 
 export type TctlUser = {
   id: string
