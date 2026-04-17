@@ -1,0 +1,181 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { TrendingDown, TrendingUp, Activity, Waves, HelpCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import type { Instrument, Level, LevelType } from '@/lib/storage'
+import { LEVEL_TYPE_OPTIONS } from '@/lib/storage'
+
+const selectClass = "w-full h-9 rounded-lg border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+import * as api from '@/lib/api'
+import { isAdmin } from '@/lib/config'
+
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  Support:     { label: 'Soporte',     color: 'text-white',     bg: 'bg-zinc-900',  border: 'border-zinc-900' },
+  Resistance:  { label: 'Resistencia', color: 'text-zinc-900',  bg: 'bg-white',     border: 'border-zinc-900' },
+  POC:         { label: 'POC',         color: 'text-zinc-700',  bg: 'bg-zinc-100',  border: 'border-zinc-300' },
+  VWAP:        { label: 'VWAP',        color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-300' },
+  VAH:         { label: 'VAH',         color: 'text-zinc-700',  bg: 'bg-zinc-100',  border: 'border-zinc-300' },
+  VAL:         { label: 'VAL',         color: 'text-zinc-700',  bg: 'bg-zinc-100',  border: 'border-zinc-300' },
+  'VAH (DA)':  { label: 'VAH (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'POC (DA)':  { label: 'POC (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'VAH (SA)':  { label: 'VAH (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'POC (SA)':  { label: 'POC (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'VAL (SA)':  { label: 'VAL (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  Other:       { label: 'Otro',        color: 'text-zinc-400',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+}
+
+const TYPE_ICONS: Record<string, React.ElementType> = {
+  Support: TrendingUp, Resistance: TrendingDown, POC: Activity, VWAP: Waves,
+  VAH: Activity, VAL: Activity,
+  'VAH (DA)': Activity, 'POC (DA)': Activity,
+  'VAH (SA)': Activity, 'POC (SA)': Activity, 'VAL (SA)': Activity,
+  Other: HelpCircle,
+}
+
+const INSTRUMENTS: Instrument[] = ['ES', 'NQ', 'MES', 'MNQ']
+
+type Props = { date: string; userEmail: string }
+
+export function CTLLevels({ date, userEmail }: Props) {
+  const isAdminUser = isAdmin(userEmail)
+  const [levels, setLevels] = useState<Level[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [instrument, setInstrument] = useState<Instrument>('ES')
+  const [price, setPrice] = useState('')
+  const [type, setType] = useState<LevelType>('Support')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const fetchLevels = useCallback(async () => {
+    setLoading(true)
+    const data = await api.getCTLLevels(date)
+    setLevels(data)
+    setLoading(false)
+  }, [date])
+
+  useEffect(() => { fetchLevels() }, [fetchLevels])
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    const parsed = parseFloat(price)
+    if (!price || isNaN(parsed)) return
+    setSaving(true)
+    try {
+      const newLevel = await api.addCTLLevel(date, { instrument, price: parsed, type, notes: notes.trim() || undefined })
+      setLevels((prev) => [...prev, newLevel])
+      setPrice('')
+      setNotes('')
+    } catch (err) {
+      console.error(err)
+    }
+    setSaving(false)
+  }
+
+  async function handleDelete(id: string) {
+    await api.deleteCTLLevel(id)
+    setLevels((prev) => prev.filter((l) => l.id !== id))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+          </svg>
+        </div>
+        <div>
+          <p className="font-bold text-zinc-900 text-sm">Niveles Collective Trade Lab</p>
+          <p className="text-xs text-zinc-500">Análisis del día publicado para el canal</p>
+        </div>
+      </div>
+
+      {isAdminUser && (
+        <form onSubmit={handleAdd} className="rounded-lg border border-zinc-200 bg-zinc-50 p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Instrumento</p>
+              <select value={instrument} onChange={(e) => setInstrument(e.target.value as Instrument)} className={selectClass}>
+                {INSTRUMENTS.map((i) => <option key={i} value={i}>{i}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Precio</p>
+              <Input type="number" step="0.25" placeholder="5920.00" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Tipo</p>
+              <select value={type} onChange={(e) => setType(e.target.value as LevelType)} className={selectClass}>
+                {LEVEL_TYPE_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button type="submit" disabled={saving} className="w-full bg-zinc-900 hover:bg-black text-white">
+                {saving ? '...' : 'Publicar'}
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Notas (opcional)</p>
+            <Input placeholder="Ej. Máximo del día anterior, mirando reacción en este nivel" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-zinc-400 py-4 text-center">Cargando...</p>
+      ) : levels.length === 0 ? (
+        <div className="rounded-lg border bg-card p-8 text-center">
+          <p className="text-sm text-zinc-400">Aún no se han publicado niveles para hoy.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {INSTRUMENTS.map((inst) => {
+            const group = [...levels.filter((l) => l.instrument === inst)].sort((a, b) => b.price - a.price)
+            if (group.length === 0) return null
+            return (
+              <div key={inst}>
+                <p className="text-xs font-medium uppercase tracking-widest text-primary mb-3">{inst}</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {group.map((level) => {
+                    const cfg = TYPE_CONFIG[level.type]
+                    const Icon = TYPE_ICONS[level.type]
+                    return (
+                      <div key={level.id} className="group relative rounded-lg border bg-card p-5 transition-all duration-300 hover:border-primary/60 hover:shadow-lg">
+                        <div className="absolute -left-[1px] top-1/2 h-1/2 w-px -translate-y-1/2 bg-border transition-colors group-hover:bg-primary/60" />
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-primary shadow-sm transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-mono font-bold text-card-foreground text-lg">
+                                {level.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </span>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cfg.color} ${cfg.bg} ${cfg.border}`}>
+                                {cfg.label}
+                              </span>
+                            </div>
+                            {level.notes && <p className="text-sm text-muted-foreground truncate">{level.notes}</p>}
+                          </div>
+                          {isAdminUser && (
+                            <button onClick={() => handleDelete(level.id)} className="flex-shrink-0 text-zinc-300 hover:text-zinc-700 transition-colors text-xl leading-none" title="Eliminar">×</button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
