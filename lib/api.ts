@@ -231,3 +231,23 @@ export async function addUserRule(userId: string, category: string, rule: string
 export async function deleteUserRule(id: string): Promise<void> {
   await supabase.from('user_rules').delete().eq('id', id)
 }
+
+// ── Rule Checks ───────────────────────────────────────────────────────────────
+
+export async function getRuleChecks(userId: string, date: string): Promise<Record<string, boolean>> {
+  const { data } = await supabase
+    .from('rule_checks')
+    .select('rule_key, checked')
+    .eq('user_id', userId)
+    .eq('date', date)
+  const result: Record<string, boolean> = {}
+  for (const row of data ?? []) result[row.rule_key] = row.checked
+  return result
+}
+
+export async function setRuleCheck(userId: string, date: string, ruleKey: string, checked: boolean): Promise<void> {
+  await supabase.from('rule_checks').upsert(
+    { user_id: userId, date, rule_key: ruleKey, checked },
+    { onConflict: 'user_id,date,rule_key' }
+  )
+}
