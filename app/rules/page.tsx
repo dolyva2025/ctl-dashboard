@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/useAuth'
 import { CTLRules } from '@/components/CTLRules'
+import { UserRules } from '@/components/UserRules'
 import { RulesChecklist } from '@/components/RulesChecklist'
 import { WeekSelector } from '@/components/WeekSelector'
 import { todayDate } from '@/lib/storage'
@@ -37,22 +38,42 @@ export default function RulesPage() {
           </div>
         </div>
 
-        {/* Daily checklist — right */}
+        {/* User column — right */}
         <div className="space-y-4">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 h-4 leading-4">Revisión Post-Sesión</p>
-          <div className="rounded-lg border bg-card p-6 space-y-5">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400 h-4 leading-4">Tu análisis</p>
+
+          <div className="rounded-lg border bg-card p-6 space-y-6">
+            {/* User rules header */}
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
               </div>
               <div>
-                <p className="font-bold text-zinc-900 text-sm">¿Seguiste tus reglas hoy?</p>
-                <p className="text-xs text-zinc-500">Marca las que aplicaron en tu sesión</p>
+                <p className="font-bold text-zinc-900 text-sm">Mis Reglas</p>
+                <p className="text-xs text-zinc-500">Tus reglas personales de trading</p>
               </div>
             </div>
-            <RulesChecklist userId={user.id} date={date} />
+            <UserRules userId={user.id} userName={user.personalName} hideHeader />
+
+            <div className="border-t border-zinc-100" />
+
+            {/* Daily checklist */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-bold text-zinc-900 text-sm">¿Seguiste tus reglas hoy?</p>
+                  <p className="text-xs text-zinc-500">Marca las que aplicaron en tu sesión</p>
+                </div>
+              </div>
+              <RulesChecklist userId={user.id} date={date} />
+            </div>
           </div>
         </div>
       </div>

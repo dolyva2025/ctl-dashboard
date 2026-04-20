@@ -80,11 +80,7 @@ export function UserRules({ userId, userName, hideHeader = false }: Props) {
 
       {loading ? (
         <p className="text-sm text-zinc-400 py-4 text-center">Cargando...</p>
-      ) : rules.length === 0 ? (
-        <div className="rounded-lg border bg-card p-8 text-center">
-          <p className="text-sm text-zinc-400">Aún no tienes reglas. Agrega tu primera regla arriba.</p>
-        </div>
-      ) : (
+      ) : rules.length === 0 ? null : (
         <div className="space-y-5">
           {CATEGORIES.map((cat) => {
             const items = grouped[cat]
