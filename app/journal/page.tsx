@@ -32,9 +32,9 @@ const ACCOUNT_LABELS: Record<AccountType, string> = {
 }
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'week', label: 'Esta semana' },
-  { key: 'month', label: 'Este mes' },
-  { key: 'all', label: 'Todo' },
+  { key: 'week', label: 'Semana' },
+  { key: 'month', label: 'Mes' },
+  { key: 'all', label: 'Historial' },
 ]
 
 // ── Month Calendar ────────────────────────────────────────────────────────────
