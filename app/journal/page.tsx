@@ -63,6 +63,11 @@ export default function JournalPage() {
     setTrades((prev) => prev.filter((t) => t.id !== id))
   }
 
+  async function handleEdit(id: string, updates: Omit<Trade, 'id'>) {
+    const updated = await api.updateTrade(id, updates)
+    setTrades((prev) => prev.map((t) => t.id === id ? updated : t))
+  }
+
   if (loading || !user) return null
 
   const accountTrades = trades.filter((t) => t.account_type === account)
@@ -116,7 +121,7 @@ export default function JournalPage() {
       </div>
 
       <div>
-        <TradeTable trades={visibleTrades} onDelete={handleDelete} />
+        <TradeTable trades={visibleTrades} onDelete={handleDelete} onEdit={handleEdit} />
       </div>
     </div>
   )

@@ -204,6 +204,17 @@ export async function addTrade(userId: string, trade: Omit<Trade, 'id'>): Promis
   return { ...trade, id: data.id }
 }
 
+export async function updateTrade(id: string, updates: Omit<Trade, 'id'>): Promise<Trade> {
+  const { data, error } = await supabase
+    .from('trades')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return { ...updates, id: data.id }
+}
+
 export async function deleteTrade(id: string): Promise<void> {
   await supabase.from('trades').delete().eq('id', id)
 }
