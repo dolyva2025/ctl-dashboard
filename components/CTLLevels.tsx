@@ -45,6 +45,8 @@ function getIcon(type: string): React.ElementType {
 
 const INSTRUMENTS: Instrument[] = ['ES', 'NQ', 'MES', 'MNQ']
 
+type EditState = { price: string; type: LevelType; instrument: Instrument; notes: string }
+
 type Props = { date: string; userEmail: string; readOnly?: boolean }
 
 export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
@@ -57,6 +59,9 @@ export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
   const [type, setType] = useState<LevelType>('Support')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editState, setEditState] = useState<EditState>({ price: '', type: 'Support', instrument: 'ES', notes: '' })
 
   const fetchLevels = useCallback(async () => {
     setLoading(true)
@@ -86,6 +91,23 @@ export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
   async function handleDelete(id: string) {
     await api.deleteCTLLevel(id)
     setLevels((prev) => prev.filter((l) => l.id !== id))
+  }
+
+  function startEdit(level: Level) {
+    setEditingId(level.id)
+    setEditState({ price: String(level.price), type: level.type as LevelType, instrument: level.instrument, notes: level.notes ?? '' })
+  }
+
+  async function handleSaveEdit(id: string) {
+    const parsed = parseFloat(editState.price)
+    if (isNaN(parsed)) return
+    setSaving(true)
+    try {
+      const updated = await api.updateCTLLevel(id, { price: parsed, type: editState.type, instrument: editState.instrument, notes: editState.notes.trim() || undefined })
+      setLevels((prev) => prev.map((l) => l.id === id ? updated : l))
+      setEditingId(null)
+    } catch (err) { console.error(err) }
+    setSaving(false)
   }
 
   return (
@@ -154,28 +176,66 @@ export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
                   {group.map((level) => {
                     const cfg = TYPE_CONFIG[level.type ?? ''] ?? TYPE_CONFIG['Other']
                     const Icon = getIcon(level.type ?? '')
+                    const isEditing = editingId === level.id
                     return (
                       <div key={level.id} className="group relative rounded-lg border bg-card p-5 transition-all duration-300 hover:border-primary/60 hover:shadow-lg">
                         <div className="absolute -left-[1px] top-1/2 h-1/2 w-px -translate-y-1/2 bg-border transition-colors group-hover:bg-primary/60" />
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-primary shadow-sm transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-mono font-bold text-card-foreground text-lg">
-                                {level.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                              </span>
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cfg.color} ${cfg.bg} ${cfg.border}`}>
-                                {cfg.label}
-                              </span>
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Instrumento</p>
+                                <select value={editState.instrument} onChange={(e) => setEditState((s) => ({ ...s, instrument: e.target.value as Instrument }))} className={selectClass}>
+                                  {INSTRUMENTS.map((i) => <option key={i} value={i}>{i}</option>)}
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Precio</p>
+                                <Input type="number" step="0.25" value={editState.price} onChange={(e) => setEditState((s) => ({ ...s, price: e.target.value }))} />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Tipo</p>
+                                <select value={editState.type} onChange={(e) => setEditState((s) => ({ ...s, type: e.target.value as LevelType }))} className={selectClass}>
+                                  {LEVEL_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                              </div>
                             </div>
-                            {level.notes && <p className="text-sm text-muted-foreground truncate">{level.notes}</p>}
+                            <Input placeholder="Notas (opcional)" value={editState.notes} onChange={(e) => setEditState((s) => ({ ...s, notes: e.target.value }))} />
+                            <div className="flex gap-2">
+                              <Button size="sm" disabled={saving} onClick={() => handleSaveEdit(level.id)} className="bg-zinc-900 hover:bg-black text-white">
+                                {saving ? '...' : 'Guardar'}
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
+                            </div>
                           </div>
-                          {isAdminUser && (
-                            <button onClick={() => handleDelete(level.id)} className="flex-shrink-0 text-zinc-300 hover:text-zinc-700 transition-colors text-xl leading-none" title="Eliminar">×</button>
-                          )}
-                        </div>
+                        ) : (
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-primary shadow-sm transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-mono font-bold text-card-foreground text-lg">
+                                  {level.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cfg.color} ${cfg.bg} ${cfg.border}`}>
+                                  {cfg.label}
+                                </span>
+                              </div>
+                              {level.notes && <p className="text-sm text-muted-foreground truncate">{level.notes}</p>}
+                            </div>
+                            {isAdminUser && (
+                              <div className="flex-shrink-0 flex items-center gap-2">
+                                <button onClick={() => startEdit(level)} className="text-zinc-300 hover:text-zinc-700 transition-colors" title="Editar">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                  </svg>
+                                </button>
+                                <button onClick={() => handleDelete(level.id)} className="text-zinc-300 hover:text-zinc-700 transition-colors text-xl leading-none" title="Eliminar">×</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })}

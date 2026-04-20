@@ -150,6 +150,17 @@ export async function addCTLLevel(date: string, level: Omit<Level, 'id'>): Promi
   return { id: data.id, instrument: data.instrument as Instrument, price: Number(data.price), type: data.type as LevelType, notes: data.notes ?? undefined }
 }
 
+export async function updateCTLLevel(id: string, updates: { price: number; type: LevelType; instrument: Instrument; notes?: string }): Promise<Level> {
+  const { data, error } = await supabase
+    .from('ctl_levels')
+    .update({ price: updates.price, type: updates.type, instrument: updates.instrument, notes: updates.notes ?? null })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return { id: data.id, instrument: data.instrument as Instrument, price: Number(data.price), type: data.type as LevelType, notes: data.notes ?? undefined }
+}
+
 export async function deleteCTLLevel(id: string): Promise<void> {
   await supabase.from('ctl_levels').delete().eq('id', id)
 }
