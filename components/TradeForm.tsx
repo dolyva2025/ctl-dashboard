@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { Direction, Instrument, Trade, AccountType } from '@/lib/storage'
-import { todayDate, ACCOUNT_TYPES } from '@/lib/storage'
+import { todayDate } from '@/lib/storage'
 
 const selectClass = "w-full h-9 rounded-lg border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
 
