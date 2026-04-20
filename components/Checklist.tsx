@@ -122,7 +122,7 @@ export function Checklist({ userId, date }: Props) {
     return (
       <div
         key={i}
-        className={`group relative rounded-lg border bg-card p-4 h-full transition-all duration-300 ${
+        className={`group relative rounded-lg border bg-card p-4 transition-all duration-300 ${
           isDone
             ? 'border-primary/40 shadow-sm'
             : routine.completed ? '' : 'hover:border-primary/60 hover:shadow-md'
@@ -185,36 +185,35 @@ export function Checklist({ userId, date }: Props) {
         <span className="text-sm text-muted-foreground">{answered} / {TOTAL} respondidas</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
         {/* Left column — questions 0–4 */}
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex-1">{renderQuestion(i)}</div>
-          ))}
+        <div className="space-y-3">
+          {[0, 1, 2, 3, 4].map((i) => renderQuestion(i))}
         </div>
-        {/* Right column — questions 5–8 + confirm button */}
-        <div className="flex flex-col gap-3">
-          {[5, 6, 7, 8].map((i) => (
-            <div key={i} className="flex-1">{renderQuestion(i)}</div>
-          ))}
-          {!routine.completed && allAnswered && (
-            <button onClick={confirm} disabled={confirming}
-              className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors">
-              {confirming ? 'Confirmando...' : 'Confirmar rutina del día →'}
-            </button>
-          )}
-          {answered > 0 && !routine.completed && !allAnswered && (
-            <button onClick={reset} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left">
-              ↺ Borrar respuestas
-            </button>
-          )}
-          {routine.completed && (
-            <button onClick={reset} className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left">
-              ↺ Reiniciar rutina
-            </button>
-          )}
+        {/* Right column — questions 5–8 */}
+        <div className="space-y-3">
+          {[5, 6, 7, 8].map((i) => renderQuestion(i))}
         </div>
       </div>
+
+      {!routine.completed && allAnswered && (
+        <button onClick={confirm} disabled={confirming}
+          className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors">
+          {confirming ? 'Confirmando...' : 'Confirmar rutina del día →'}
+        </button>
+      )}
+
+      {answered > 0 && !routine.completed && (
+        <button onClick={reset} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          ↺ Borrar respuestas
+        </button>
+      )}
+
+      {routine.completed && (
+        <button onClick={reset} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          ↺ Reiniciar rutina
+        </button>
+      )}
     </div>
   )
 }
