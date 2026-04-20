@@ -62,61 +62,75 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
     byDate[t.date].push(t)
   }
 
-  function ruleColor(dayTrades: Trade[]) {
-    const adherences = dayTrades.map((t) => t.rule_adherence).filter(Boolean)
+  function worstRule(dayTrades: Trade[]): string | null {
+    const adherences = dayTrades.map((t) => t.rule_adherence).filter(Boolean) as string[]
     if (adherences.length === 0) return null
-    if (adherences.some((a) => a === 'No')) return 'bg-red-500'
-    if (adherences.some((a) => a === 'Parcialmente')) return 'bg-zinc-400'
-    return 'bg-zinc-900'
+    if (adherences.some((a) => a === 'No')) return 'No'
+    if (adherences.some((a) => a === 'Parcialmente')) return 'Parcialmente'
+    return 'Sí'
   }
 
   const cells: (number | null)[] = [
     ...Array(startDow).fill(null),
     ...Array.from({ length: totalDays }, (_, i) => i + 1),
   ]
-  // Pad to full weeks
   while (cells.length % 7 !== 0) cells.push(null)
 
   const monthName = today.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
   const todayStr = todayDate()
 
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-3">
-      <p className="text-sm font-semibold capitalize text-zinc-900">{monthName}</p>
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => (
-          <p key={d} className="text-xs font-semibold text-zinc-400 py-1">{d}</p>
+    <div className="rounded-lg border border-zinc-900 bg-white p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold capitalize text-zinc-900">{monthName}</p>
+        <div className="flex items-center gap-3 text-xs text-zinc-900">
+          <span className="font-medium">Reglas:</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-zinc-900" />Sí, las seguí</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-zinc-400" />Parcialmente</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" />No las seguí</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'].map((d) => (
+          <p key={d} className="text-xs font-semibold text-zinc-900 text-center py-1">{d}</p>
         ))}
         {cells.map((day, i) => {
           if (!day) return <div key={`e-${i}`} />
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const dayTrades = byDate[dateStr] ?? []
           const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
+          const wins = dayTrades.filter((t) => t.pnl > 0).length
+          const winRate = dayTrades.length > 0 ? Math.round((wins / dayTrades.length) * 100) : null
           const isToday = dateStr === todayStr
           const isSelected = dateStr === selectedDay
           const hasTrades = dayTrades.length > 0
-          const dotColor = ruleColor(dayTrades)
+          const rule = worstRule(dayTrades)
+
+          const ruleBg = rule === 'No' ? 'bg-red-500' : rule === 'Parcialmente' ? 'bg-zinc-400' : 'bg-zinc-900'
+          const ruleTextColor = 'text-white'
 
           return (
             <button
               key={dateStr}
-              onClick={() => onSelectDay(isSelected ? null : dateStr)}
-              className={`rounded-lg p-1.5 text-center transition-all ${
-                isSelected ? 'ring-2 ring-zinc-900 bg-zinc-50' :
-                isToday ? 'ring-1 ring-zinc-300' : ''
+              onClick={() => hasTrades ? onSelectDay(isSelected ? null : dateStr) : undefined}
+              className={`rounded-lg border border-zinc-900 bg-white p-2 text-left transition-all h-[88px] ${
+                isSelected ? 'ring-2 ring-zinc-900' : isToday ? 'ring-1 ring-zinc-400' : ''
               } ${hasTrades ? 'hover:bg-zinc-50 cursor-pointer' : 'cursor-default'}`}
             >
-              <p className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-zinc-900' : 'text-zinc-500'}`}>{day}</p>
+              <p className="text-xs font-bold mb-1 text-zinc-900">{day}</p>
               {hasTrades ? (
-                <>
-                  <p className={`text-xs font-bold leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
-                    {pnl >= 0 ? '+' : ''}{pnl % 1 === 0 ? pnl : pnl.toFixed(0)}
+                <div className="space-y-1">
+                  <p className={`text-sm font-black leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
+                    {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
                   </p>
-                  {dotColor && <span className={`inline-block w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />}
-                </>
-              ) : (
-                <p className="text-xs text-zinc-200">·</p>
-              )}
+                  <p className="text-xs text-zinc-500">{winRate}% WR</p>
+                  {rule && (
+                    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${ruleBg} ${ruleTextColor}`}>
+                      {rule}
+                    </span>
+                  )}
+                </div>
+              ) : null}
             </button>
           )
         })}
