@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { DailyRoutine, Level, Trade, Instrument, LevelType, Direction } from './storage'
+import type { DailyRoutine, Level, Trade, Instrument, LevelType, Direction, AccountType } from './storage'
 
 export type Rule = {
   id: string
@@ -174,6 +174,7 @@ export async function getTrades(userId: string): Promise<Trade[]> {
     target: Number(row.target),
     exit: Number(row.exit),
     pnl: Number(row.pnl),
+    account_type: (row.account_type ?? 'Personal') as AccountType,
     notes: row.notes ?? undefined,
     emotions: row.emotions ?? undefined,
     reflection: row.reflection ?? undefined,

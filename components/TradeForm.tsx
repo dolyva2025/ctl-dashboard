@@ -3,16 +3,17 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import type { Direction, Instrument, Trade } from '@/lib/storage'
-import { todayDate } from '@/lib/storage'
+import type { Direction, Instrument, Trade, AccountType } from '@/lib/storage'
+import { todayDate, ACCOUNT_TYPES } from '@/lib/storage'
 
 const selectClass = "w-full h-9 rounded-lg border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
 
 type Props = {
   onAdd: (trade: Omit<Trade, 'id'>) => void
+  defaultAccount?: AccountType
 }
 
-export function TradeForm({ onAdd }: Props) {
+export function TradeForm({ onAdd, defaultAccount = 'Personal' }: Props) {
   const [date, setDate] = useState(todayDate())
   const [instrument, setInstrument] = useState<Instrument>('ES')
   const [direction, setDirection] = useState<Direction>('Long')
@@ -22,6 +23,7 @@ export function TradeForm({ onAdd }: Props) {
   const [exit, setExit] = useState('')
   const [notes, setNotes] = useState('')
   const [ruleAdherence, setRuleAdherence] = useState('')
+  const [accountType] = useState<AccountType>(defaultAccount)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,7 +37,7 @@ export function TradeForm({ onAdd }: Props) {
     const ticks = ((exitN - entryN) / 0.25) * (direction === 'Long' ? 1 : -1)
     const pnl = Math.round(ticks * tickValue * 100) / 100
 
-    onAdd({ date, instrument, direction, entry: entryN, stop: stopN, target: targetN, exit: exitN, pnl, notes: notes.trim() || undefined, rule_adherence: ruleAdherence || undefined })
+    onAdd({ date, instrument, direction, entry: entryN, stop: stopN, target: targetN, exit: exitN, pnl, account_type: accountType, notes: notes.trim() || undefined, rule_adherence: ruleAdherence || undefined })
     setEntry('')
     setStop('')
     setTarget('')

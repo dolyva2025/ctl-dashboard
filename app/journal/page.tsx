@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { TradeForm } from '@/components/TradeForm'
 import { TradeTable } from '@/components/TradeTable'
-import type { Trade } from '@/lib/storage'
+import type { Trade, AccountType } from '@/lib/storage'
+import { ACCOUNT_TYPES } from '@/lib/storage'
 import { useAuth } from '@/lib/useAuth'
 import * as api from '@/lib/api'
 
@@ -34,10 +35,17 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'Todo' },
 ]
 
+const ACCOUNT_LABELS: Record<AccountType, string> = {
+  'Evaluación': 'Evaluación',
+  'Funded': 'Funded',
+  'Personal': 'Personal',
+}
+
 export default function JournalPage() {
   const { user, loading } = useAuth()
   const [trades, setTrades] = useState<Trade[]>([])
   const [period, setPeriod] = useState<Period>('week')
+  const [account, setAccount] = useState<AccountType>('Evaluación')
 
   useEffect(() => {
     if (!user) return
@@ -57,7 +65,8 @@ export default function JournalPage() {
 
   if (loading || !user) return null
 
-  const visibleTrades = filterByPeriod(trades, period)
+  const accountTrades = trades.filter((t) => t.account_type === account)
+  const visibleTrades = filterByPeriod(accountTrades, period)
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -84,9 +93,26 @@ export default function JournalPage() {
         </div>
       </div>
 
+      {/* Account tabs */}
+      <div className="flex gap-1 bg-zinc-100 rounded-xl p-1 w-fit">
+        {ACCOUNT_TYPES.map((type) => (
+          <button
+            key={type}
+            onClick={() => setAccount(type)}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+              account === type
+                ? 'bg-zinc-900 text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'
+            }`}
+          >
+            {ACCOUNT_LABELS[type]}
+          </button>
+        ))}
+      </div>
+
       <div className="rounded-lg border bg-card p-6">
         <p className="text-sm font-medium uppercase tracking-widest text-primary mb-4">Registrar Trade</p>
-        <TradeForm onAdd={handleAdd} />
+        <TradeForm onAdd={handleAdd} defaultAccount={account} />
       </div>
 
       <div>

@@ -39,6 +39,10 @@ export type DailyLevels = {
 
 export type Direction = 'Long' | 'Short'
 
+export type AccountType = 'Evaluación' | 'Funded' | 'Personal'
+
+export const ACCOUNT_TYPES: AccountType[] = ['Evaluación', 'Funded', 'Personal']
+
 export type Trade = {
   id: string
   date: string
@@ -49,6 +53,7 @@ export type Trade = {
   target: number
   exit: number
   pnl: number
+  account_type: AccountType
   notes?: string
   emotions?: string
   reflection?: string

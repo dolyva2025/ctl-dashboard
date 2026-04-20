@@ -22,6 +22,11 @@ export default function RootLayout({
         <PreviewProvider>
           <NavWrapper />
           <main className="px-4 py-8 sm:px-8">{children}</main>
+          <footer className="border-t border-zinc-100 mt-12 px-6 py-6">
+            <p className="text-xs text-zinc-400 text-center max-w-3xl mx-auto leading-relaxed">
+              Este contenido es exclusivamente educativo y no constituye asesoramiento financiero. El trading de futuros conlleva un riesgo significativo de pérdida. Todas las decisiones de inversión y trading son responsabilidad exclusiva del usuario.
+            </p>
+          </footer>
         </PreviewProvider>
       </body>
     </html>
