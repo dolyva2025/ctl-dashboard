@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { TradeForm } from '@/components/TradeForm'
 import { TradeTable } from '@/components/TradeTable'
-import { WeekSelector } from '@/components/WeekSelector'
 import type { Trade, AccountType } from '@/lib/storage'
 import { ACCOUNT_TYPES } from '@/lib/storage'
 import { useAuth } from '@/lib/useAuth'
@@ -36,6 +35,121 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'month', label: 'Mes' },
   { key: 'all', label: 'Historial' },
 ]
+
+// ── Week Strip ────────────────────────────────────────────────────────────────
+
+function WeekStrip({ trades, selectedDay, onSelectDay }: {
+  trades: Trade[]
+  selectedDay: string | null
+  onSelectDay: (date: string | null) => void
+}) {
+  const today = new Date()
+  const dow = today.getDay()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
+
+  const days = Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+
+  const DAY_LABELS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE']
+  const todayStr = todayDate()
+
+  const byDate: Record<string, Trade[]> = {}
+  for (const t of trades) {
+    if (!byDate[t.date]) byDate[t.date] = []
+    byDate[t.date].push(t)
+  }
+
+  const weekTrades = Object.values(byDate).flat()
+  const weekPnl = weekTrades.reduce((s, t) => s + t.pnl, 0)
+  const weekWins = weekTrades.filter((t) => t.pnl > 0).length
+  const weekWR = weekTrades.length > 0 ? Math.round((weekWins / weekTrades.length) * 100) : null
+
+  function worstRule(dayTrades: Trade[]): string | null {
+    const a = dayTrades.map((t) => t.rule_adherence).filter(Boolean) as string[]
+    if (a.length === 0) return null
+    if (a.some((x) => x === 'No')) return 'No'
+    if (a.some((x) => x === 'Parcialmente')) return 'Parcialmente'
+    return 'Sí'
+  }
+
+  const weekLabel = `Semana del ${monday.getDate()} al ${new Date(monday.getTime() + 4 * 86400000).getDate()} de ${monday.toLocaleDateString('es-ES', { month: 'long' })}`
+
+  return (
+    <div className="rounded-lg border border-zinc-900 bg-white p-5 space-y-4">
+      <p className="text-sm font-semibold text-zinc-900">{weekLabel}</p>
+      <div className="grid grid-cols-5 gap-2">
+        {days.map((d, i) => {
+          const dateStr = d.toISOString().split('T')[0]
+          const dayTrades = byDate[dateStr] ?? []
+          const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
+          const wins = dayTrades.filter((t) => t.pnl > 0).length
+          const winRate = dayTrades.length > 0 ? Math.round((wins / dayTrades.length) * 100) : null
+          const isToday = dateStr === todayStr
+          const isSelected = selectedDay === dateStr
+          const hasTrades = dayTrades.length > 0
+          const rule = worstRule(dayTrades)
+          const ruleBg = rule === 'No' ? 'bg-red-500' : rule === 'Parcialmente' ? 'bg-zinc-400' : 'bg-zinc-900'
+
+          return (
+            <button
+              key={dateStr}
+              onClick={() => hasTrades ? onSelectDay(isSelected ? null : dateStr) : undefined}
+              className={`rounded-lg border border-zinc-900 bg-white p-3 text-left h-[100px] transition-all ${
+                isSelected ? 'ring-2 ring-zinc-900' : isToday ? 'ring-1 ring-zinc-400' : ''
+              } ${hasTrades ? 'hover:bg-zinc-50 cursor-pointer' : 'cursor-default'}`}
+            >
+              <p className={`text-xs font-bold mb-1 ${isToday ? 'text-zinc-900' : 'text-zinc-400'}`}>
+                {DAY_LABELS[i]} {d.getDate()}
+              </p>
+              {hasTrades ? (
+                <div className="space-y-1">
+                  <p className={`text-base font-black leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
+                    {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-zinc-500">{winRate}% WR</p>
+                  {rule && (
+                    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${ruleBg} text-white`}>
+                      {rule}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-300 mt-3">Sin trades</p>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div className="flex items-center gap-6 pt-2 border-t border-zinc-100">
+        <div>
+          <p className="text-xs text-zinc-400">P&L semana</p>
+          <p className={`text-sm font-black ${weekPnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
+            {weekPnl >= 0 ? '+' : ''}${Math.abs(weekPnl).toFixed(2)}
+          </p>
+        </div>
+        {weekWR !== null && (
+          <div>
+            <p className="text-xs text-zinc-400">Win Rate</p>
+            <p className="text-sm font-black text-zinc-900">{weekWR}%</p>
+          </div>
+        )}
+        <div>
+          <p className="text-xs text-zinc-400">Trades</p>
+          <p className="text-sm font-black text-zinc-900">{weekTrades.length}</p>
+        </div>
+        {selectedDay && (
+          <button onClick={() => onSelectDay(null)} className="ml-auto text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
+            Mostrar toda la semana →
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ── Month Calendar ────────────────────────────────────────────────────────────
 
@@ -151,7 +265,7 @@ export default function JournalPage() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [period, setPeriod] = useState<Period>('week')
   const [account, setAccount] = useState<AccountType>('Evaluación')
-  const [weekDay, setWeekDay] = useState(todayDate())
+  const [weekDay, setWeekDay] = useState<string | null>(todayDate())
   const [calendarDay, setCalendarDay] = useState<string | null>(null)
 
   useEffect(() => {
@@ -179,10 +293,14 @@ export default function JournalPage() {
 
   const accountTrades = trades.filter((t) => t.account_type === account)
 
+  const weekStart = getWeekStart()
+  const weekEnd = (() => { const d = new Date(weekStart); d.setDate(d.getDate() + 4); return d.toISOString().split('T')[0] })()
+  const weekAccountTrades = accountTrades.filter((t) => t.date >= weekStart && t.date <= weekEnd)
+
   // Filter by period
   let visibleTrades: Trade[]
   if (period === 'week') {
-    visibleTrades = accountTrades.filter((t) => t.date === weekDay)
+    visibleTrades = weekDay ? weekAccountTrades.filter((t) => t.date === weekDay) : weekAccountTrades
   } else if (period === 'month') {
     const monthStart = getMonthStart()
     const monthTrades = accountTrades.filter((t) => t.date >= monthStart)
@@ -235,12 +353,13 @@ export default function JournalPage() {
         ))}
       </div>
 
-      {/* Week day selector */}
+      {/* Week strip */}
       {period === 'week' && (
-        <div className="flex items-center gap-3">
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Día</p>
-          <WeekSelector selected={weekDay} onChange={setWeekDay} />
-        </div>
+        <WeekStrip
+          trades={weekAccountTrades}
+          selectedDay={weekDay}
+          onSelectDay={setWeekDay}
+        />
       )}
 
       {/* Month calendar */}
