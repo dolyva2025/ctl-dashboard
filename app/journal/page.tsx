@@ -265,7 +265,7 @@ export default function JournalPage() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [period, setPeriod] = useState<Period>('week')
   const [account, setAccount] = useState<AccountType>('Evaluación')
-  const [weekDay, setWeekDay] = useState<string | null>(todayDate())
+  const [weekDay, setWeekDay] = useState<string | null>(null)
   const [calendarDay, setCalendarDay] = useState<string | null>(null)
 
   useEffect(() => {
