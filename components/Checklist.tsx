@@ -113,104 +113,128 @@ export function Checklist({ userId, date }: Props) {
   const answered = routine.answers.filter((a) => a !== null).length
   const allAnswered = answered === TOTAL
 
-  function renderQuestion(i: number) {
-    const q = QUESTIONS[i]
-    const Icon = q.icon
-    const ans = routine.answers[i]
-    const isDone = ans !== null
-
-    return (
-      <div
-        key={i}
-        className={`group relative rounded-lg border bg-card p-4 transition-all duration-300 ${
-          isDone
-            ? 'border-primary/40 shadow-sm'
-            : routine.completed ? '' : 'hover:border-primary/60 hover:shadow-md'
-        }`}
-      >
-        <div className="absolute -left-[1px] top-1/2 h-1/2 w-px -translate-y-1/2 transition-colors ${isDone ? 'bg-primary/40' : 'bg-border group-hover:bg-primary/60'}" />
-
-        <div className="flex items-start gap-3">
-          <div className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border shadow-sm transition-colors duration-300 ${
-            isDone
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-background text-primary group-hover:bg-primary group-hover:text-primary-foreground'
-          }`}>
-            <Icon className="h-4 w-4" />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium uppercase tracking-widest text-primary mb-0.5">{q.category}</p>
-            <p className="text-sm font-semibold text-card-foreground leading-snug mb-3">{q.text}</p>
-
-            {q.type === 'yesno' ? (
-              <div className="flex gap-2">
-                {['yes', 'no'].map((val) => (
-                  <button key={val} onClick={() => selectAnswer(i, val)} disabled={routine.completed}
-                    className={`px-4 py-1.5 rounded-full font-semibold text-xs transition-all disabled:cursor-not-allowed ${
-                      ans === val
-                        ? val === 'yes' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-slate-800 text-white shadow-sm'
-                        : 'border border-input text-muted-foreground hover:border-primary/50 hover:text-primary'
-                    }`}>
-                    {val === 'yes' ? 'Sí' : 'No'}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {q.options!.map((opt) => (
-                  <button key={opt} onClick={() => selectAnswer(i, opt)} disabled={routine.completed}
-                    className={`px-3 py-1.5 rounded-full font-semibold text-xs transition-all disabled:cursor-not-allowed ${
-                      ans === opt
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'border border-input text-muted-foreground hover:border-primary/50 hover:text-primary'
-                    }`}>
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       {routine.completed && <Banner result={result} />}
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-sm font-medium uppercase tracking-widest text-primary">Cuestionario</span>
+        <span className="text-sm font-medium uppercase tracking-widest text-primary">
+          Cuestionario
+        </span>
         <span className="text-sm text-muted-foreground">{answered} / {TOTAL} respondidas</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
-        {/* Left column — questions 0–4 */}
-        <div className="space-y-3">
-          {[0, 1, 2, 3, 4].map((i) => renderQuestion(i))}
-        </div>
-        {/* Right column — questions 5–8 */}
-        <div className="space-y-3">
-          {[5, 6, 7, 8].map((i) => renderQuestion(i))}
-        </div>
-      </div>
+      {QUESTIONS.map((q, i) => {
+        const Icon = q.icon
+        const ans = routine.answers[i]
+        const isDone = ans !== null
+
+        return (
+          <div
+            key={i}
+            className={`group relative rounded-lg border bg-card p-6 transition-all duration-300 ${
+              isDone
+                ? 'border-primary/40 shadow-sm'
+                : routine.completed ? '' : 'hover:border-primary/60 hover:shadow-lg cursor-pointer'
+            }`}
+          >
+            {/* Decorative left line */}
+            <div className={`absolute -left-[1px] top-1/2 h-1/2 w-px -translate-y-1/2 transition-colors ${
+              isDone ? 'bg-primary/40' : 'bg-border group-hover:bg-primary/60'
+            }`} />
+
+            <div className="flex items-start gap-5">
+              {/* Icon */}
+              <div className={`flex-shrink-0 flex h-12 w-12 items-center justify-center rounded-lg border shadow-sm transition-colors duration-300 ${
+                isDone
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-primary group-hover:bg-primary group-hover:text-primary-foreground'
+              }`}>
+                <Icon className="h-5 w-5" />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1">
+                  {q.category}
+                </p>
+                <p className="text-base font-semibold text-card-foreground leading-snug mb-4">
+                  {q.text}
+                </p>
+
+                {q.type === 'yesno' ? (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => selectAnswer(i, 'yes')}
+                      disabled={routine.completed}
+                      className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-150 disabled:cursor-not-allowed ${
+                        ans === 'yes'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'border border-input text-muted-foreground hover:border-primary/50 hover:text-primary'
+                      }`}
+                    >
+                      Sí
+                    </button>
+                    <button
+                      onClick={() => selectAnswer(i, 'no')}
+                      disabled={routine.completed}
+                      className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-150 disabled:cursor-not-allowed ${
+                        ans === 'no'
+                          ? 'bg-slate-800 text-white shadow-sm'
+                          : 'border border-input text-muted-foreground hover:border-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {q.options!.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => selectAnswer(i, opt)}
+                        disabled={routine.completed}
+                        className={`px-5 py-2 rounded-full font-semibold text-sm transition-all duration-150 disabled:cursor-not-allowed ${
+                          ans === opt
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'border border-input text-muted-foreground hover:border-primary/50 hover:text-primary'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })}
 
       {!routine.completed && allAnswered && (
-        <button onClick={confirm} disabled={confirming}
-          className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors">
+        <button
+          onClick={confirm}
+          disabled={confirming}
+          className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"
+        >
           {confirming ? 'Confirmando...' : 'Confirmar rutina del día →'}
         </button>
       )}
 
       {answered > 0 && !routine.completed && (
-        <button onClick={reset} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={reset}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           ↺ Borrar respuestas
         </button>
       )}
 
       {routine.completed && (
-        <button onClick={reset} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={reset}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           ↺ Reiniciar rutina
         </button>
       )}

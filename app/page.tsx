@@ -17,7 +17,7 @@ export default function RoutinePage() {
   if (loading || !user) return null
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium uppercase tracking-widest text-primary mb-1">Pre-Mercado</p>
