@@ -184,11 +184,16 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
     return 'Sí'
   }
 
-  const cells: (number | null)[] = [
-    ...Array(startDow).fill(null),
-    ...Array.from({ length: totalDays }, (_, i) => i + 1),
-  ]
-  while (cells.length % 7 !== 0) cells.push(null)
+  // Build 6-column grid (Mon–Sat), skip Sundays
+  const cells: (number | null)[] = []
+  const adjustedStart = startDow < 6 ? startDow : 0
+  for (let i = 0; i < adjustedStart; i++) cells.push(null)
+  for (let day = 1; day <= totalDays; day++) {
+    const dow = (new Date(year, month, day).getDay() + 6) % 7
+    if (dow === 6) continue // skip Sunday
+    cells.push(day)
+  }
+  while (cells.length % 6 !== 0) cells.push(null)
 
   const monthName = today.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
   const todayStr = todayDate()
@@ -204,12 +209,12 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
           <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" />No las seguí</span>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
-        {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'].map((d) => (
+      <div className="grid grid-cols-6 gap-1.5">
+        {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'].map((d) => (
           <p key={d} className="text-xs font-semibold text-zinc-900 text-center py-1">{d}</p>
         ))}
         {cells.map((day, i) => {
-          if (!day) return <div key={`e-${i}`} />
+          if (!day) return <div key={`e-${i}`} className="h-[96px]" />
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const dayTrades = byDate[dateStr] ?? []
           const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
@@ -219,15 +224,13 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
           const isSelected = dateStr === selectedDay
           const hasTrades = dayTrades.length > 0
           const rule = worstRule(dayTrades)
-
           const ruleBg = rule === 'No' ? 'bg-red-500' : rule === 'Parcialmente' ? 'bg-zinc-400' : 'bg-zinc-900'
-          const ruleTextColor = 'text-white'
 
           return (
             <button
               key={dateStr}
               onClick={() => hasTrades ? onSelectDay(isSelected ? null : dateStr) : undefined}
-              className={`rounded-lg border border-zinc-900 bg-white p-2 text-left transition-all h-[88px] ${
+              className={`rounded-lg border border-zinc-900 bg-white p-2 text-left transition-all h-[96px] ${
                 isSelected ? 'ring-2 ring-zinc-900' : isToday ? 'ring-1 ring-zinc-400' : ''
               } ${hasTrades ? 'hover:bg-zinc-50 cursor-pointer' : 'cursor-default'}`}
             >
@@ -237,14 +240,16 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
                   <p className={`text-sm font-black leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
                     {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
                   </p>
-                  <p className="text-xs text-zinc-500">{winRate}% WR</p>
+                  <p className="text-xs text-zinc-500">{winRate}% WR · {dayTrades.length} trade{dayTrades.length !== 1 ? 's' : ''}</p>
                   {rule && (
-                    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${ruleBg} ${ruleTextColor}`}>
+                    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-zinc-900 text-white ${ruleBg}`}>
                       {rule}
                     </span>
                   )}
                 </div>
-              ) : null}
+              ) : (
+                <p className="text-xs text-zinc-300 mt-1">No Trades</p>
+              )}
             </button>
           )
         })}
