@@ -98,7 +98,7 @@ export async function getLevels(userId: string, date: string): Promise<Level[]> 
     id: row.id,
     instrument: row.instrument as Instrument,
     price: Number(row.price),
-    type: row.type as LevelType,
+    type: (row.type ?? 'Other') as LevelType,
     notes: row.notes ?? undefined,
   }))
 }
@@ -131,7 +131,7 @@ export async function getCTLLevels(date: string): Promise<Level[]> {
     id: row.id,
     instrument: row.instrument as Instrument,
     price: Number(row.price),
-    type: row.type as LevelType,
+    type: (row.type === 'other' ? 'Other' : row.type ?? 'Other') as LevelType,
     notes: row.notes ?? undefined,
   }))
 }

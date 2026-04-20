@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingDown, TrendingUp, Activity, Waves, HelpCircle } from 'lucide-react'
+import { TrendingDown, TrendingUp, Activity, Waves } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { Instrument, Level, LevelType } from '@/lib/storage'
@@ -20,26 +20,35 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; bo
   VAL:         { label: 'VAL',         color: 'text-zinc-700',  bg: 'bg-zinc-100',  border: 'border-zinc-300' },
   'VAH (DA)':  { label: 'VAH (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
   'POC (DA)':  { label: 'POC (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'VAL (DA)':  { label: 'VAL (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
   'VAH (SA)':  { label: 'VAH (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
   'POC (SA)':  { label: 'POC (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
   'VAL (SA)':  { label: 'VAL (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
   Other:       { label: 'Otro',        color: 'text-zinc-400',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  Otro:        { label: 'Otro',        color: 'text-zinc-400',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  other:       { label: 'Otro',        color: 'text-zinc-400',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
 }
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
   Support: TrendingUp, Resistance: TrendingDown, POC: Activity, VWAP: Waves,
   VAH: Activity, VAL: Activity,
-  'VAH (DA)': Activity, 'POC (DA)': Activity,
+  'VAH (DA)': Activity, 'POC (DA)': Activity, 'VAL (DA)': Activity,
   'VAH (SA)': Activity, 'POC (SA)': Activity, 'VAL (SA)': Activity,
-  Other: HelpCircle,
+  Other: Activity,
+  Soporte: TrendingUp, Resistencia: TrendingDown, Otro: Activity,
+  other: Activity,
+}
+
+function getIcon(type: string): React.ElementType {
+  return TYPE_ICONS[type] ?? Activity
 }
 
 const INSTRUMENTS: Instrument[] = ['ES', 'NQ', 'MES', 'MNQ']
 
-type Props = { date: string; userEmail: string }
+type Props = { date: string; userEmail: string; readOnly?: boolean }
 
-export function CTLLevels({ date, userEmail }: Props) {
-  const isAdminUser = isAdmin(userEmail)
+export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
+  const isAdminUser = isAdmin(userEmail) && !readOnly
   const [levels, setLevels] = useState<Level[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -143,8 +152,8 @@ export function CTLLevels({ date, userEmail }: Props) {
                 <p className="text-xs font-medium uppercase tracking-widest text-primary mb-3">{inst}</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {group.map((level) => {
-                    const cfg = TYPE_CONFIG[level.type]
-                    const Icon = TYPE_ICONS[level.type]
+                    const cfg = TYPE_CONFIG[level.type ?? ''] ?? TYPE_CONFIG['Other']
+                    const Icon = getIcon(level.type ?? '')
                     return (
                       <div key={level.id} className="group relative rounded-lg border bg-card p-5 transition-all duration-300 hover:border-primary/60 hover:shadow-lg">
                         <div className="absolute -left-[1px] top-1/2 h-1/2 w-px -translate-y-1/2 bg-border transition-colors group-hover:bg-primary/60" />

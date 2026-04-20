@@ -75,25 +75,34 @@ type Props = { userId: string; date: string }
 
 export function Checklist({ userId, date }: Props) {
   const [routine, setRoutine] = useState<DailyRoutine>({ date, answers: Array(9).fill(null), notes: Array(9).fill(''), completed: false })
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     api.getRoutine(userId, date).then(setRoutine)
   }, [userId, date])
 
   function selectAnswer(index: number, value: string) {
+    if (routine.completed) return
     const newAnswers = [...routine.answers]
     newAnswers[index] = value
-    const allAnswered = newAnswers.every((a) => a !== null)
-    const updated: DailyRoutine = { ...routine, answers: newAnswers, completed: allAnswered }
+    const updated: DailyRoutine = { ...routine, answers: newAnswers, completed: false }
     setRoutine(updated)
     api.saveRoutine(userId, updated)
+  }
+
+  async function confirm() {
+    setConfirming(true)
+    const updated: DailyRoutine = { ...routine, completed: true }
+    setRoutine(updated)
+    await api.saveRoutine(userId, updated)
+    setConfirming(false)
   }
 
   function reset() {
     const fresh: DailyRoutine = {
       date,
-      answers: Array(8).fill(null),
-      notes: Array(8).fill(''),
+      answers: Array(9).fill(null),
+      notes: Array(9).fill(''),
       completed: false,
     }
     setRoutine(fresh)
@@ -102,10 +111,11 @@ export function Checklist({ userId, date }: Props) {
 
   const result = scoreRoutine(routine)
   const answered = routine.answers.filter((a) => a !== null).length
+  const allAnswered = answered === TOTAL
 
   return (
     <div className="space-y-4">
-      <Banner result={result} />
+      {routine.completed && <Banner result={result} />}
 
       <div className="flex items-center justify-between px-1">
         <span className="text-sm font-medium uppercase tracking-widest text-primary">
@@ -125,7 +135,7 @@ export function Checklist({ userId, date }: Props) {
             className={`group relative rounded-lg border bg-card p-6 transition-all duration-300 ${
               isDone
                 ? 'border-primary/40 shadow-sm'
-                : 'hover:border-primary/60 hover:shadow-lg cursor-pointer'
+                : routine.completed ? '' : 'hover:border-primary/60 hover:shadow-lg cursor-pointer'
             }`}
           >
             {/* Decorative left line */}
@@ -156,7 +166,8 @@ export function Checklist({ userId, date }: Props) {
                   <div className="flex gap-3">
                     <button
                       onClick={() => selectAnswer(i, 'yes')}
-                      className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-150 ${
+                      disabled={routine.completed}
+                      className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-150 disabled:cursor-not-allowed ${
                         ans === 'yes'
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'border border-input text-muted-foreground hover:border-primary/50 hover:text-primary'
@@ -166,7 +177,8 @@ export function Checklist({ userId, date }: Props) {
                     </button>
                     <button
                       onClick={() => selectAnswer(i, 'no')}
-                      className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-150 ${
+                      disabled={routine.completed}
+                      className={`px-6 py-2 rounded-full font-semibold text-sm transition-all duration-150 disabled:cursor-not-allowed ${
                         ans === 'no'
                           ? 'bg-slate-800 text-white shadow-sm'
                           : 'border border-input text-muted-foreground hover:border-slate-400 hover:text-slate-700'
@@ -181,7 +193,8 @@ export function Checklist({ userId, date }: Props) {
                       <button
                         key={opt}
                         onClick={() => selectAnswer(i, opt)}
-                        className={`px-5 py-2 rounded-full font-semibold text-sm transition-all duration-150 ${
+                        disabled={routine.completed}
+                        className={`px-5 py-2 rounded-full font-semibold text-sm transition-all duration-150 disabled:cursor-not-allowed ${
                           ans === opt
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'border border-input text-muted-foreground hover:border-primary/50 hover:text-primary'
@@ -198,12 +211,31 @@ export function Checklist({ userId, date }: Props) {
         )
       })}
 
-      {answered > 0 && (
+      {!routine.completed && allAnswered && (
+        <button
+          onClick={confirm}
+          disabled={confirming}
+          className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"
+        >
+          {confirming ? 'Confirmando...' : 'Confirmar rutina del día →'}
+        </button>
+      )}
+
+      {answered > 0 && !routine.completed && (
         <button
           onClick={reset}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           ↺ Borrar respuestas
+        </button>
+      )}
+
+      {routine.completed && (
+        <button
+          onClick={reset}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ↺ Reiniciar rutina
         </button>
       )}
     </div>

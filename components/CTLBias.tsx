@@ -9,10 +9,10 @@ const empty: BiasEntry = { bias: '', setup: '', key_levels: '', avoid: '', notes
 const textareaClass = "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none min-h-[80px]"
 const labelClass = "text-xs font-medium uppercase tracking-widest text-zinc-500"
 
-type Props = { date: string; userEmail: string }
+type Props = { date: string; userEmail: string; readOnly?: boolean }
 
-export function CTLBias({ date, userEmail }: Props) {
-  const isAdminUser = isAdmin(userEmail)
+export function CTLBias({ date, userEmail, readOnly = false }: Props) {
+  const isAdminUser = isAdmin(userEmail) && !readOnly
   const [entry, setEntry] = useState<BiasEntry>(empty)
   const [saved, setSaved] = useState<BiasEntry | null>(null)
   const [loading, setLoading] = useState(true)

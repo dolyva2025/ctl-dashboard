@@ -5,7 +5,7 @@ export type DailyRoutine = {
   completed: boolean
 }
 
-export type LevelType = 'Support' | 'Resistance' | 'POC' | 'VWAP' | 'VAH' | 'VAL' | 'VAH (DA)' | 'POC (DA)' | 'VAH (SA)' | 'POC (SA)' | 'VAL (SA)' | 'Other'
+export type LevelType = 'Support' | 'Resistance' | 'POC' | 'VWAP' | 'VAH' | 'VAL' | 'VAH (DA)' | 'POC (DA)' | 'VAL (DA)' | 'VAH (SA)' | 'POC (SA)' | 'VAL (SA)' | 'Other'
 
 export const LEVEL_TYPE_OPTIONS: { value: LevelType; label: string }[] = [
   { value: 'Support',    label: 'Soporte'     },
@@ -16,6 +16,7 @@ export const LEVEL_TYPE_OPTIONS: { value: LevelType; label: string }[] = [
   { value: 'VAL',        label: 'VAL'         },
   { value: 'VAH (DA)',   label: 'VAH (DA)'    },
   { value: 'POC (DA)',   label: 'POC (DA)'    },
+  { value: 'VAL (DA)',   label: 'VAL (DA)'    },
   { value: 'VAH (SA)',   label: 'VAH (SA)'    },
   { value: 'POC (SA)',   label: 'POC (SA)'    },
   { value: 'VAL (SA)',   label: 'VAL (SA)'    },
