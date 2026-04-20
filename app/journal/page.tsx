@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { TradeForm } from '@/components/TradeForm'
 import { TradeTable } from '@/components/TradeTable'
+import { WeekSelector } from '@/components/WeekSelector'
 import type { Trade, AccountType } from '@/lib/storage'
 import { ACCOUNT_TYPES } from '@/lib/storage'
 import { useAuth } from '@/lib/useAuth'
+import { todayDate } from '@/lib/storage'
 import * as api from '@/lib/api'
 
 type Period = 'week' | 'month' | 'all'
@@ -23,10 +25,10 @@ function getMonthStart(): string {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
 }
 
-function filterByPeriod(trades: Trade[], period: Period): Trade[] {
-  if (period === 'all') return trades
-  const cutoff = period === 'week' ? getWeekStart() : getMonthStart()
-  return trades.filter((t) => t.date >= cutoff)
+const ACCOUNT_LABELS: Record<AccountType, string> = {
+  'Evaluación': 'Evaluación',
+  'Funded': 'Funded',
+  'Personal': 'Personal',
 }
 
 const PERIODS: { key: Period; label: string }[] = [
@@ -35,17 +37,108 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'Todo' },
 ]
 
-const ACCOUNT_LABELS: Record<AccountType, string> = {
-  'Evaluación': 'Evaluación',
-  'Funded': 'Funded',
-  'Personal': 'Personal',
+// ── Month Calendar ────────────────────────────────────────────────────────────
+
+function MonthCalendar({ trades, selectedDay, onSelectDay }: {
+  trades: Trade[]
+  selectedDay: string | null
+  onSelectDay: (date: string | null) => void
+}) {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+
+  // Start grid on Monday
+  const startDow = (firstDay.getDay() + 6) % 7
+  const totalDays = lastDay.getDate()
+
+  // Group trades by date
+  const byDate: Record<string, Trade[]> = {}
+  for (const t of trades) {
+    if (!byDate[t.date]) byDate[t.date] = []
+    byDate[t.date].push(t)
+  }
+
+  function ruleColor(dayTrades: Trade[]) {
+    const adherences = dayTrades.map((t) => t.rule_adherence).filter(Boolean)
+    if (adherences.length === 0) return null
+    if (adherences.some((a) => a === 'No')) return 'bg-red-500'
+    if (adherences.some((a) => a === 'Parcialmente')) return 'bg-zinc-400'
+    return 'bg-zinc-900'
+  }
+
+  const cells: (number | null)[] = [
+    ...Array(startDow).fill(null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
+  ]
+  // Pad to full weeks
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const monthName = today.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+  const todayStr = todayDate()
+
+  return (
+    <div className="rounded-lg border bg-card p-5 space-y-3">
+      <p className="text-sm font-semibold capitalize text-zinc-900">{monthName}</p>
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => (
+          <p key={d} className="text-xs font-semibold text-zinc-400 py-1">{d}</p>
+        ))}
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e-${i}`} />
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          const dayTrades = byDate[dateStr] ?? []
+          const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
+          const isToday = dateStr === todayStr
+          const isSelected = dateStr === selectedDay
+          const hasTrades = dayTrades.length > 0
+          const dotColor = ruleColor(dayTrades)
+
+          return (
+            <button
+              key={dateStr}
+              onClick={() => onSelectDay(isSelected ? null : dateStr)}
+              className={`rounded-lg p-1.5 text-center transition-all ${
+                isSelected ? 'ring-2 ring-zinc-900 bg-zinc-50' :
+                isToday ? 'ring-1 ring-zinc-300' : ''
+              } ${hasTrades ? 'hover:bg-zinc-50 cursor-pointer' : 'cursor-default'}`}
+            >
+              <p className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-zinc-900' : 'text-zinc-500'}`}>{day}</p>
+              {hasTrades ? (
+                <>
+                  <p className={`text-xs font-bold leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
+                    {pnl >= 0 ? '+' : ''}{pnl % 1 === 0 ? pnl : pnl.toFixed(0)}
+                  </p>
+                  {dotColor && <span className={`inline-block w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />}
+                </>
+              ) : (
+                <p className="text-xs text-zinc-200">·</p>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      {selectedDay && (
+        <button onClick={() => onSelectDay(null)} className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
+          Mostrar todo el mes →
+        </button>
+      )}
+    </div>
+  )
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function JournalPage() {
   const { user, loading } = useAuth()
   const [trades, setTrades] = useState<Trade[]>([])
   const [period, setPeriod] = useState<Period>('week')
   const [account, setAccount] = useState<AccountType>('Evaluación')
+  const [weekDay, setWeekDay] = useState(todayDate())
+  const [calendarDay, setCalendarDay] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -71,7 +164,20 @@ export default function JournalPage() {
   if (loading || !user) return null
 
   const accountTrades = trades.filter((t) => t.account_type === account)
-  const visibleTrades = filterByPeriod(accountTrades, period)
+
+  // Filter by period
+  let visibleTrades: Trade[]
+  if (period === 'week') {
+    visibleTrades = accountTrades.filter((t) => t.date === weekDay)
+  } else if (period === 'month') {
+    const monthStart = getMonthStart()
+    const monthTrades = accountTrades.filter((t) => t.date >= monthStart)
+    visibleTrades = calendarDay ? monthTrades.filter((t) => t.date === calendarDay) : monthTrades
+  } else {
+    visibleTrades = accountTrades
+  }
+
+  const monthAccountTrades = accountTrades.filter((t) => t.date >= getMonthStart())
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -114,6 +220,23 @@ export default function JournalPage() {
           </button>
         ))}
       </div>
+
+      {/* Week day selector */}
+      {period === 'week' && (
+        <div className="flex items-center gap-3">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">Día</p>
+          <WeekSelector selected={weekDay} onChange={setWeekDay} />
+        </div>
+      )}
+
+      {/* Month calendar */}
+      {period === 'month' && (
+        <MonthCalendar
+          trades={monthAccountTrades}
+          selectedDay={calendarDay}
+          onSelectDay={setCalendarDay}
+        />
+      )}
 
       <div className="rounded-lg border bg-card p-6">
         <p className="text-sm font-medium uppercase tracking-widest text-primary mb-4">Registrar Trade</p>
