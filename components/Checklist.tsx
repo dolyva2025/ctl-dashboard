@@ -119,7 +119,7 @@ export function Checklist({ userId, date }: Props) {
 
       <div className="flex items-center justify-between px-1">
         <span className="text-sm font-medium uppercase tracking-widest text-primary">
-          Cuestionario
+          Análisis Pre-Sesión
         </span>
         <span className="text-sm text-muted-foreground">{answered} / {TOTAL} respondidas</span>
       </div>
