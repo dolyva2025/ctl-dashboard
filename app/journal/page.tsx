@@ -184,16 +184,16 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
     return 'Sí'
   }
 
-  // Build 5-column grid (Mon–Fri), skip weekends
+  // Build 6-column grid (Mon–Sat), skip Sundays
   const cells: (number | null)[] = []
-  const adjustedStart = startDow < 5 ? startDow : 0
+  const adjustedStart = startDow < 6 ? startDow : 0
   for (let i = 0; i < adjustedStart; i++) cells.push(null)
   for (let day = 1; day <= totalDays; day++) {
     const dow = (new Date(year, month, day).getDay() + 6) % 7
-    if (dow >= 5) continue // skip Saturday (5) and Sunday (6)
+    if (dow === 6) continue // skip Sunday
     cells.push(day)
   }
-  while (cells.length % 5 !== 0) cells.push(null)
+  while (cells.length % 6 !== 0) cells.push(null)
 
   const monthName = today.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
   const todayStr = todayDate()
@@ -209,8 +209,8 @@ function MonthCalendar({ trades, selectedDay, onSelectDay }: {
           <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" />No las seguí</span>
         </div>
       </div>
-      <div className="grid grid-cols-5 gap-1.5">
-        {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE'].map((d) => (
+      <div className="grid grid-cols-6 gap-1.5">
+        {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'].map((d) => (
           <p key={d} className="text-xs font-semibold text-zinc-900 text-center py-1">{d}</p>
         ))}
         {cells.map((day, i) => {
