@@ -99,13 +99,21 @@ export default function LevelsPage() {
         </div>
       )}
 
-      <div className="space-y-4">
-        <div className="rounded-lg border bg-card p-6">
-          <CTLBias date={date} userEmail={user.email} />
+      <div className="rounded-lg border bg-card p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-bold text-zinc-900 text-sm">Bias + Niveles clave del día</p>
+            <p className="text-xs text-zinc-500">Análisis Collective Trade Lab</p>
+          </div>
         </div>
-        <div className="rounded-lg border bg-card p-6">
-          <CTLLevels date={date} userEmail={user.email} />
-        </div>
+        <CTLBias date={date} userEmail={user.email} hideHeader />
+        <div className="border-t border-zinc-100" />
+        <CTLLevels date={date} userEmail={user.email} hideHeader />
       </div>
     </div>
   )

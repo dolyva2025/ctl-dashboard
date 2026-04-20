@@ -47,9 +47,9 @@ const INSTRUMENTS: Instrument[] = ['ES', 'NQ', 'MES', 'MNQ']
 
 type EditState = { price: string; type: LevelType; instrument: Instrument; notes: string }
 
-type Props = { date: string; userEmail: string; readOnly?: boolean }
+type Props = { date: string; userEmail: string; readOnly?: boolean; hideHeader?: boolean }
 
-export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
+export function CTLLevels({ date, userEmail, readOnly = false, hideHeader = false }: Props) {
   const isAdminUser = isAdmin(userEmail) && !readOnly
   const [levels, setLevels] = useState<Level[]>([])
   const [loading, setLoading] = useState(true)
@@ -112,17 +112,19 @@ export function CTLLevels({ date, userEmail, readOnly = false }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-          </svg>
+      {!hideHeader && (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-bold text-zinc-900 text-sm">Niveles Collective Trade Lab</p>
+            <p className="text-xs text-zinc-500">Análisis del día publicado para el canal</p>
+          </div>
         </div>
-        <div>
-          <p className="font-bold text-zinc-900 text-sm">Niveles Collective Trade Lab</p>
-          <p className="text-xs text-zinc-500">Análisis del día publicado para el canal</p>
-        </div>
-      </div>
+      )}
 
       {isAdminUser && (
         <form onSubmit={handleAdd} className="rounded-lg border border-zinc-200 bg-zinc-50 p-5 space-y-4">
