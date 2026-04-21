@@ -15,7 +15,7 @@ function getWeekDays(includeSunday: boolean): { date: string; label: string; sho
   const weekdays = Array.from({ length: 5 }, (_, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const date = d.toISOString().split('T')[0]
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const label = d.toLocaleDateString('es-ES', { weekday: 'short' })
     const short = String(d.getDate())
     return { date, label, short, isSunday: false }
@@ -26,7 +26,7 @@ function getWeekDays(includeSunday: boolean): { date: string; label: string; sho
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() - 1)
   const sundayEntry = {
-    date: sunday.toISOString().split('T')[0],
+    date: `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`,
     label: sunday.toLocaleDateString('es-ES', { weekday: 'short' }),
     short: String(sunday.getDate()),
     isSunday: true,
@@ -37,7 +37,8 @@ function getWeekDays(includeSunday: boolean): { date: string; label: string; sho
 
 export function WeekSelector({ selected, onChange, includeSunday = false }: Props) {
   const days = getWeekDays(includeSunday)
-  const today = new Date().toISOString().split('T')[0]
+  const d0 = new Date()
+  const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
 
   return (
     <div className="flex items-center gap-1 bg-zinc-100 rounded-xl p-1">

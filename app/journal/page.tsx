@@ -6,7 +6,7 @@ import { TradeTable } from '@/components/TradeTable'
 import type { Trade, AccountType } from '@/lib/storage'
 import { ACCOUNT_TYPES } from '@/lib/storage'
 import { useAuth } from '@/lib/useAuth'
-import { todayDate } from '@/lib/storage'
+import { todayDate, localDateStr } from '@/lib/storage'
 import * as api from '@/lib/api'
 
 type Period = 'week' | 'month' | 'all'
@@ -16,7 +16,7 @@ function getWeekStart(): string {
   const day = today.getDay()
   const monday = new Date(today)
   monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
-  return monday.toISOString().split('T')[0]
+  return localDateStr(monday)
 }
 
 function getMonthStart(): string {
@@ -49,8 +49,7 @@ function WeekStrip({ trades, selectedDay, onSelectDay }: {
   monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
 
   const days = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
+    const d = new Date(today.getFullYear(), today.getMonth(), monday.getDate() + i)
     return d
   })
 
@@ -83,7 +82,7 @@ function WeekStrip({ trades, selectedDay, onSelectDay }: {
       <p className="text-sm font-semibold text-zinc-900">{weekLabel}</p>
       <div className="grid grid-cols-5 gap-2">
         {days.map((d, i) => {
-          const dateStr = d.toISOString().split('T')[0]
+          const dateStr = localDateStr(d)
           const dayTrades = byDate[dateStr] ?? []
           const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
           const wins = dayTrades.filter((t) => t.pnl > 0).length
@@ -299,7 +298,7 @@ export default function JournalPage() {
   const accountTrades = trades.filter((t) => t.account_type === account)
 
   const weekStart = getWeekStart()
-  const weekEnd = (() => { const d = new Date(weekStart); d.setDate(d.getDate() + 4); return d.toISOString().split('T')[0] })()
+  const weekEnd = (() => { const ws = new Date(weekStart + 'T12:00:00'); ws.setDate(ws.getDate() + 4); return localDateStr(ws) })()
   const weekAccountTrades = accountTrades.filter((t) => t.date >= weekStart && t.date <= weekEnd)
 
   // Filter by period

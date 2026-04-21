@@ -15,7 +15,7 @@ function getSundayDate(): string {
   monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() - 1)
-  return sunday.toISOString().split('T')[0]
+  return `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`
 }
 
 export default function LevelsPage() {
