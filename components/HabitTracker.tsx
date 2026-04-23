@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Plus, Trash2, Flame, Check } from 'lucide-react'
 import * as api from '@/lib/api'
 import { localDateStr } from '@/lib/storage'
@@ -88,6 +88,11 @@ export function HabitTracker({ userId }: { userId: string }) {
   const [newName, setNewName]             = useState('')
   const [adding, setAdding]               = useState(false)
   const [error, setError]                 = useState<string | null>(null)
+  const formRef                           = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (addingTo) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [addingTo])
 
   const loadData = useCallback(async () => {
     const since = sinceDate()
@@ -261,26 +266,18 @@ export function HabitTracker({ userId }: { userId: string }) {
 
             {/* Salud */}
             <div style={{ width: saludCols * CELL, backgroundColor: SECTION_STYLES.salud.bg }}
-              className="flex items-center justify-between px-2 py-2 border-r-2 border-zinc-300">
+              className="flex items-center justify-center py-2 border-r-2 border-zinc-300">
               <span style={{ color: SECTION_STYLES.salud.text }} className="text-xs font-bold uppercase tracking-widest">
                 Salud
               </span>
-              <button onClick={() => { setAddingTo('salud'); setNewName('') }}
-                style={{ color: SECTION_STYLES.salud.text }} className="opacity-60 hover:opacity-100 transition-opacity">
-                <Plus className="w-3 h-3" />
-              </button>
             </div>
 
             {/* Personal */}
             <div style={{ width: personalCols * CELL, backgroundColor: SECTION_STYLES.personal.bg }}
-              className="flex items-center justify-between px-2 py-2">
+              className="flex items-center justify-center py-2">
               <span style={{ color: SECTION_STYLES.personal.text }} className="text-xs font-bold uppercase tracking-widest">
                 Personal
               </span>
-              <button onClick={() => { setAddingTo('personal'); setNewName('') }}
-                style={{ color: SECTION_STYLES.personal.text }} className="opacity-60 hover:opacity-100 transition-opacity">
-                <Plus className="w-3 h-3" />
-              </button>
             </div>
           </div>
 
@@ -425,28 +422,53 @@ export function HabitTracker({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {/* Add habit buttons */}
+      {!addingTo && (
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setAddingTo('salud'); setNewName('') }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors"
+            style={{ borderColor: SECTION_STYLES.salud.bg, backgroundColor: SECTION_STYLES.salud.bg, color: SECTION_STYLES.salud.text }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Agregar hábito en Salud
+          </button>
+          <button
+            onClick={() => { setAddingTo('personal'); setNewName('') }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors"
+            style={{ borderColor: SECTION_STYLES.personal.bg, backgroundColor: SECTION_STYLES.personal.bg, color: SECTION_STYLES.personal.text }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Agregar hábito en Personal
+          </button>
+        </div>
+      )}
+
       {/* Add habit form */}
       {addingTo && (
-        <div className="flex gap-2 items-center">
-          <div className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: SECTION_STYLES[addingTo].colBg }} />
-          <span className="text-sm font-medium text-zinc-600 capitalize">{addingTo}:</span>
-          <input
-            value={newName}
-            onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); if (e.key === 'Escape') setAddingTo(null) }}
-            placeholder={`Nuevo hábito en ${addingTo}...`}
-            autoFocus
-            className="flex-1 h-9 rounded-lg border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
-          />
-          <button onClick={handleAddHabit} disabled={!newName.trim() || adding}
-            className="px-4 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-lg disabled:opacity-40 hover:bg-black transition-colors">
-            {adding ? '...' : 'Agregar'}
-          </button>
-          <button onClick={() => setAddingTo(null)}
-            className="px-3 py-2 text-sm text-zinc-400 hover:text-zinc-700 transition-colors">
-            Cancelar
-          </button>
+        <div ref={formRef} className="rounded-lg border-2 p-4 space-y-3"
+          style={{ borderColor: SECTION_STYLES[addingTo].bg, backgroundColor: `${SECTION_STYLES[addingTo].bg}40` }}>
+          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: SECTION_STYLES[addingTo].text }}>
+            Nuevo hábito en {addingTo === 'salud' ? 'Salud' : 'Personal'}
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); if (e.key === 'Escape') setAddingTo(null) }}
+              placeholder="Nombre del hábito..."
+              autoFocus
+              className="flex-1 h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300"
+            />
+            <button onClick={handleAddHabit} disabled={!newName.trim() || adding}
+              className="px-5 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-lg disabled:opacity-40 hover:bg-black transition-colors">
+              {adding ? '...' : 'Agregar'}
+            </button>
+            <button onClick={() => { setAddingTo(null); setNewName('') }}
+              className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
 
