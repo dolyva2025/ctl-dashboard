@@ -87,6 +87,7 @@ export function HabitTracker({ userId }: { userId: string }) {
   const [addingTo, setAddingTo]           = useState<Section | null>(null)
   const [newName, setNewName]             = useState('')
   const [adding, setAdding]               = useState(false)
+  const [error, setError]                 = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     const since = sinceDate()
@@ -107,21 +108,31 @@ export function HabitTracker({ userId }: { userId: string }) {
   async function handleAddHabit() {
     if (!newName.trim() || !addingTo) return
     setAdding(true)
-    const habit = await api.addCustomHabit(userId, newName.trim(), addingTo)
-    setCustomHabits(prev => [...prev, habit])
-    setHabitLogs(prev => ({ ...prev, [habit.id]: {} }))
-    setNewName('')
-    setAddingTo(null)
-    setAdding(false)
+    setError(null)
+    try {
+      const habit = await api.addCustomHabit(userId, newName.trim(), addingTo)
+      setCustomHabits(prev => [...prev, habit])
+      setHabitLogs(prev => ({ ...prev, [habit.id]: {} }))
+      setNewName('')
+      setAddingTo(null)
+    } catch (e) {
+      setError(`Error al agregar hábito: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setAdding(false)
+    }
   }
 
   async function handleDeleteHabit(id: string) {
-    await api.deleteCustomHabit(id)
-    setCustomHabits(prev => prev.filter(h => h.id !== id))
-    setHabitLogs(prev => { const next = { ...prev }; delete next[id]; return next })
+    try {
+      await api.deleteCustomHabit(id)
+      setCustomHabits(prev => prev.filter(h => h.id !== id))
+      setHabitLogs(prev => { const next = { ...prev }; delete next[id]; return next })
+    } catch (e) {
+      setError(`Error al eliminar hábito: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
 
-  // Click cycle: undefined → true(done ×) → false(miss ·) → undefined
+  // Click cycle: undefined → true(done) → false(miss) → undefined
   async function handleToggle(habitId: string, date: string) {
     const current = habitLogs[habitId]?.[date]
     const next: boolean | null = current === undefined ? true : current === true ? false : null
@@ -131,7 +142,12 @@ export function HabitTracker({ userId }: { userId: string }) {
       else updated[habitId][date] = next
       return updated
     })
-    await api.setHabitLog(userId, habitId, date, next)
+    try {
+      await api.setHabitLog(userId, habitId, date, next)
+    } catch (e) {
+      setError(`Error al guardar: ${e instanceof Error ? e.message : String(e)}`)
+      await loadData()
+    }
   }
 
   // ── Build habit list ─────────────────────────────────────────────────────────
@@ -218,6 +234,14 @@ export function HabitTracker({ userId }: { userId: string }) {
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs font-medium">Cerrar</button>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
