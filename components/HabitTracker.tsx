@@ -265,20 +265,28 @@ export function HabitTracker({ userId }: { userId: string }) {
             </div>
 
             {/* Salud */}
-            <div style={{ width: saludCols * CELL, backgroundColor: SECTION_STYLES.salud.bg }}
-              className="flex items-center justify-center py-2 border-r-2 border-zinc-300">
+            <button
+              onClick={() => { setAddingTo('salud'); setNewName('') }}
+              style={{ width: saludCols * CELL, backgroundColor: SECTION_STYLES.salud.bg }}
+              className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
+            >
               <span style={{ color: SECTION_STYLES.salud.text }} className="text-xs font-bold uppercase tracking-widest">
                 Salud
               </span>
-            </div>
+              <Plus style={{ color: SECTION_STYLES.salud.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </button>
 
             {/* Personal */}
-            <div style={{ width: personalCols * CELL, backgroundColor: SECTION_STYLES.personal.bg }}
-              className="flex items-center justify-center py-2">
+            <button
+              onClick={() => { setAddingTo('personal'); setNewName('') }}
+              style={{ width: personalCols * CELL, backgroundColor: SECTION_STYLES.personal.bg }}
+              className="flex items-center justify-center gap-2 py-2 hover:brightness-95 transition-all group"
+            >
               <span style={{ color: SECTION_STYLES.personal.text }} className="text-xs font-bold uppercase tracking-widest">
                 Personal
               </span>
-            </div>
+              <Plus style={{ color: SECTION_STYLES.personal.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </button>
           </div>
 
           {/* ── Habit column headers (rotated names) ── */}
@@ -303,9 +311,12 @@ export function HabitTracker({ userId }: { userId: string }) {
                   <div style={{ height: 10, width: '100%', backgroundColor: style.colBg }} />
 
                   {/* Vertical name */}
-                  <div style={{ height: 110, width: CELL, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div
+                    style={{ height: 110, width: CELL, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isPlaceholder ? 'pointer' : 'default' }}
+                    onClick={() => isPlaceholder && (setAddingTo(habit.section as Section), setNewName(''))}
+                  >
                     {isPlaceholder ? (
-                      <span className="text-zinc-300 text-lg">+</span>
+                      <span className="text-zinc-300 hover:text-zinc-400 text-lg transition-colors">+</span>
                     ) : (
                       <span
                         title={habit.name}
