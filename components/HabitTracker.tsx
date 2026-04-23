@@ -145,8 +145,6 @@ export function HabitTracker({ userId }: { userId: string }) {
 
   const saludHabits:    Habit[] = customHabits.filter(h => h.section === 'salud').map(h => ({ ...h, section: 'salud' as Section, type: 'custom' as const }))
   const personalHabits: Habit[] = customHabits.filter(h => h.section === 'personal').map(h => ({ ...h, section: 'personal' as Section, type: 'custom' as const }))
-  const allHabits = [...tradingHabits, ...saludHabits, ...personalHabits]
-
   // ── Completed sets ───────────────────────────────────────────────────────────
 
   const autoSets: Record<string, Set<string>> = {
@@ -369,8 +367,6 @@ export function HabitTracker({ userId }: { userId: string }) {
                     done = habitLogs[habit.id]?.[date]
                     canToggle = !isFuture
                   }
-
-                  const style = SECTION_STYLES[habit.section]
 
                   return (
                     <button
