@@ -7,13 +7,16 @@ import { localDateStr } from '@/lib/storage'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const CELL = 48
+const CELL = 60
+const HALF = CELL / 2
 const DAY_COL = 76
 
 const SECTION_STYLES = {
-  trading: { bg: '#18181b', text: '#ffffff', colBg: '#52525b' },
-  salud:   { bg: '#dcfce7', text: '#166534', colBg: '#86efac' },
-  personal:{ bg: '#dbeafe', text: '#1e40af', colBg: '#93c5fd' },
+  trading:   { bg: '#18181b', text: '#ffffff', colBg: '#52525b' },
+  salud:     { bg: '#dcfce7', text: '#166534', colBg: '#86efac' },
+  personal:  { bg: '#dbeafe', text: '#1e40af', colBg: '#93c5fd' },
+  proyectos: { bg: '#f3e8ff', text: '#6b21a8', colBg: '#d8b4fe' },
+  educacion: { bg: '#fef3c7', text: '#92400e', colBg: '#fcd34d' },
 }
 
 const DOW: Record<number, string> = {
@@ -62,7 +65,7 @@ function sinceDate(): string {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Section = 'trading' | 'salud' | 'personal'
+type Section = 'trading' | 'salud' | 'personal' | 'proyectos' | 'educacion'
 
 type Habit = {
   id: string
@@ -70,6 +73,8 @@ type Habit = {
   section: Section
   type: 'auto' | 'custom'
 }
+
+type DisplayHabit = Habit | { id: string; name: string; section: Section; type: 'placeholder' }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
@@ -137,18 +142,15 @@ export function HabitTracker({ userId }: { userId: string }) {
     }
   }
 
-  // Click cycle: undefined → true(done) → false(miss) → undefined
-  async function handleToggle(habitId: string, date: string) {
-    const current = habitLogs[habitId]?.[date]
-    const next: boolean | null = current === undefined ? true : current === true ? false : null
+  async function handleMark(habitId: string, date: string, value: boolean | null) {
     setHabitLogs(prev => {
       const updated = { ...prev, [habitId]: { ...(prev[habitId] ?? {}) } }
-      if (next === null) delete updated[habitId][date]
-      else updated[habitId][date] = next
+      if (value === null) delete updated[habitId][date]
+      else updated[habitId][date] = value
       return updated
     })
     try {
-      await api.setHabitLog(userId, habitId, date, next)
+      await api.setHabitLog(userId, habitId, date, value)
     } catch (e) {
       setError(`Error al guardar: ${e instanceof Error ? e.message : String(e)}`)
       await loadData()
@@ -164,8 +166,11 @@ export function HabitTracker({ userId }: { userId: string }) {
     { id: 'journal',  name: 'Diario',       section: 'trading', type: 'auto' },
   ]
 
-  const saludHabits:    Habit[] = customHabits.filter(h => h.section === 'salud').map(h => ({ ...h, section: 'salud' as Section, type: 'custom' as const }))
-  const personalHabits: Habit[] = customHabits.filter(h => h.section === 'personal').map(h => ({ ...h, section: 'personal' as Section, type: 'custom' as const }))
+  const saludHabits:     Habit[] = customHabits.filter(h => h.section === 'salud').map(h => ({ ...h, section: 'salud' as Section, type: 'custom' as const }))
+  const personalHabits:  Habit[] = customHabits.filter(h => h.section === 'personal').map(h => ({ ...h, section: 'personal' as Section, type: 'custom' as const }))
+  const proyectosHabits: Habit[] = customHabits.filter(h => h.section === 'proyectos').map(h => ({ ...h, section: 'proyectos' as Section, type: 'custom' as const }))
+  const educacionHabits: Habit[] = customHabits.filter(h => h.section === 'educacion').map(h => ({ ...h, section: 'educacion' as Section, type: 'custom' as const }))
+
   // ── Completed sets ───────────────────────────────────────────────────────────
 
   const autoSets: Record<string, Set<string>> = {
@@ -182,23 +187,47 @@ export function HabitTracker({ userId }: { userId: string }) {
 
   // ── Layout ───────────────────────────────────────────────────────────────────
 
-  const MIN_COLS = 4
-  const saludCols    = Math.max(MIN_COLS, saludHabits.length)
-  const personalCols = Math.max(MIN_COLS, personalHabits.length)
-  const totalWidth   = DAY_COL + (4 + saludCols + personalCols) * CELL
+  const MIN_COLS       = 4
+  const MIN_COLS_SMALL = 2
 
-  // Pad each custom section to MIN_COLS with placeholder entries
-  type DisplayHabit = Habit | { id: string; name: string; section: Section; type: 'placeholder' }
-  function padSection(habits: Habit[], section: Section): DisplayHabit[] {
+  const saludCols     = Math.max(MIN_COLS, saludHabits.length)
+  const personalCols  = Math.max(MIN_COLS, personalHabits.length)
+  const proyectosCols = Math.max(MIN_COLS_SMALL, proyectosHabits.length)
+  const educacionCols = Math.max(MIN_COLS_SMALL, educacionHabits.length)
+
+  const totalCols  = 4 + saludCols + personalCols + proyectosCols + educacionCols
+  const totalWidth = DAY_COL + totalCols * CELL
+
+  function padSection(habits: Habit[], section: Section, min: number): DisplayHabit[] {
     const result: DisplayHabit[] = [...habits]
-    for (let i = habits.length; i < MIN_COLS; i++) {
+    for (let i = habits.length; i < min; i++) {
       result.push({ id: `ph-${section}-${i}`, name: '', section, type: 'placeholder' })
     }
     return result
   }
-  const displaySalud    = padSection(saludHabits, 'salud')
-  const displayPersonal = padSection(personalHabits, 'personal')
-  const displayHabits: DisplayHabit[] = [...tradingHabits, ...displaySalud, ...displayPersonal]
+
+  const displaySalud     = padSection(saludHabits,     'salud',     MIN_COLS)
+  const displayPersonal  = padSection(personalHabits,  'personal',  MIN_COLS)
+  const displayProyectos = padSection(proyectosHabits, 'proyectos', MIN_COLS_SMALL)
+  const displayEducacion = padSection(educacionHabits, 'educacion', MIN_COLS_SMALL)
+
+  const displayHabits: DisplayHabit[] = [
+    ...tradingHabits,
+    ...displaySalud,
+    ...displayPersonal,
+    ...displayProyectos,
+    ...displayEducacion,
+  ]
+
+  // Section border positions (right border of last column in each section)
+  const borderAfterTrading   = 3
+  const borderAfterSalud     = 3 + saludCols
+  const borderAfterPersonal  = 3 + saludCols + personalCols
+  const borderAfterProyectos = 3 + saludCols + personalCols + proyectosCols
+
+  function isSectionBorder(i: number): boolean {
+    return i === borderAfterTrading || i === borderAfterSalud || i === borderAfterPersonal || i === borderAfterProyectos
+  }
 
   const days = getMonthDays(monthYear.year, monthYear.month)
   const today = localDateStr(new Date())
@@ -215,6 +244,14 @@ export function HabitTracker({ userId }: { userId: string }) {
       if (prev.year === now.getFullYear() && prev.month === now.getMonth()) return prev
       return prev.month === 11 ? { year: prev.year + 1, month: 0 } : { year: prev.year, month: prev.month + 1 }
     })
+  }
+
+  function sectionLabel(s: Section): string {
+    const map: Record<Section, string> = {
+      trading: 'Trading', salud: 'Salud', personal: 'Personal',
+      proyectos: 'Proyectos Creativos', educacion: 'Educación',
+    }
+    return map[s]
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -259,9 +296,7 @@ export function HabitTracker({ userId }: { userId: string }) {
             {/* Trading */}
             <div style={{ width: 4 * CELL, backgroundColor: SECTION_STYLES.trading.bg }}
               className="flex items-center justify-center py-2 border-r-2 border-zinc-300">
-              <span style={{ color: SECTION_STYLES.trading.text }} className="text-xs font-bold uppercase tracking-widest">
-                Trading
-              </span>
+              <span style={{ color: SECTION_STYLES.trading.text }} className="text-xs font-bold uppercase tracking-widest">Trading</span>
             </div>
 
             {/* Salud */}
@@ -270,9 +305,7 @@ export function HabitTracker({ userId }: { userId: string }) {
               style={{ width: saludCols * CELL, backgroundColor: SECTION_STYLES.salud.bg }}
               className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
             >
-              <span style={{ color: SECTION_STYLES.salud.text }} className="text-xs font-bold uppercase tracking-widest">
-                Salud
-              </span>
+              <span style={{ color: SECTION_STYLES.salud.text }} className="text-xs font-bold uppercase tracking-widest">Salud</span>
               <Plus style={{ color: SECTION_STYLES.salud.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
             </button>
 
@@ -280,12 +313,30 @@ export function HabitTracker({ userId }: { userId: string }) {
             <button
               onClick={() => { setAddingTo('personal'); setNewName('') }}
               style={{ width: personalCols * CELL, backgroundColor: SECTION_STYLES.personal.bg }}
+              className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
+            >
+              <span style={{ color: SECTION_STYLES.personal.text }} className="text-xs font-bold uppercase tracking-widest">Personal</span>
+              <Plus style={{ color: SECTION_STYLES.personal.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </button>
+
+            {/* Proyectos Creativos */}
+            <button
+              onClick={() => { setAddingTo('proyectos'); setNewName('') }}
+              style={{ width: proyectosCols * CELL, backgroundColor: SECTION_STYLES.proyectos.bg }}
+              className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
+            >
+              <span style={{ color: SECTION_STYLES.proyectos.text }} className="text-xs font-bold uppercase tracking-widest">Proyectos</span>
+              <Plus style={{ color: SECTION_STYLES.proyectos.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </button>
+
+            {/* Educación */}
+            <button
+              onClick={() => { setAddingTo('educacion'); setNewName('') }}
+              style={{ width: educacionCols * CELL, backgroundColor: SECTION_STYLES.educacion.bg }}
               className="flex items-center justify-center gap-2 py-2 hover:brightness-95 transition-all group"
             >
-              <span style={{ color: SECTION_STYLES.personal.text }} className="text-xs font-bold uppercase tracking-widest">
-                Personal
-              </span>
-              <Plus style={{ color: SECTION_STYLES.personal.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+              <span style={{ color: SECTION_STYLES.educacion.text }} className="text-xs font-bold uppercase tracking-widest">Educación</span>
+              <Plus style={{ color: SECTION_STYLES.educacion.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
             </button>
           </div>
 
@@ -294,21 +345,19 @@ export function HabitTracker({ userId }: { userId: string }) {
             <div style={{ width: DAY_COL, minWidth: DAY_COL }} className="border-r-2 border-zinc-200" />
 
             {displayHabits.map((habit, i) => {
-              const style = SECTION_STYLES[habit.section]
+              const sStyle = SECTION_STYLES[habit.section]
               const isPlaceholder = habit.type === 'placeholder'
               const realHabit = isPlaceholder ? null : (habit as Habit)
               const streak = realHabit ? computeStreak(getCompletedSet(realHabit), realHabit.section === 'trading') : 0
-              const isLastTrading = i === 3
-              const isLastSalud   = i === 3 + saludCols
-              const isSectionBorder = isLastTrading || isLastSalud
+              const hasBorder = isSectionBorder(i)
 
               return (
                 <div key={habit.id}
-                  style={{ width: CELL, minWidth: CELL, borderRight: isSectionBorder ? '2px solid #d4d4d8' : '1px solid #f4f4f5' }}
+                  style={{ width: CELL, minWidth: CELL, borderRight: hasBorder ? '2px solid #d4d4d8' : '1px solid #f4f4f5' }}
                   className="flex flex-col items-center">
 
                   {/* Color bar */}
-                  <div style={{ height: 10, width: '100%', backgroundColor: style.colBg }} />
+                  <div style={{ height: 10, width: '100%', backgroundColor: sStyle.colBg }} />
 
                   {/* Vertical name */}
                   <div
@@ -361,9 +410,9 @@ export function HabitTracker({ userId }: { userId: string }) {
             const d = new Date(date + 'T12:00:00')
             const dow = d.getDay()
             const dayNum = d.getDate()
-            const isToday   = date === today
-            const isFuture  = date > today
-            const weekend   = isWeekend(d)
+            const isToday  = date === today
+            const isFuture = date > today
+            const weekend  = isWeekend(d)
 
             return (
               <div key={date} className="flex border-b border-zinc-50"
@@ -372,7 +421,7 @@ export function HabitTracker({ userId }: { userId: string }) {
                 {/* Day label */}
                 <div style={{ width: DAY_COL, minWidth: DAY_COL }}
                   className="flex items-center gap-1.5 px-2 border-r-2 border-zinc-200">
-                  <span className={`text-xs w-7 ${weekend ? 'text-zinc-400' : 'text-zinc-400'}`}>{DOW[dow]}</span>
+                  <span className="text-xs w-7 text-zinc-400">{DOW[dow]}</span>
                   <span className={`text-xs font-bold tabular-nums ${
                     isToday ? 'bg-zinc-900 text-white px-1.5 py-0.5 rounded' : weekend ? 'text-zinc-400' : 'text-zinc-600'
                   }`}>{dayNum}</span>
@@ -380,50 +429,96 @@ export function HabitTracker({ userId }: { userId: string }) {
 
                 {/* Habit cells */}
                 {displayHabits.map((habit, i) => {
-                  const isLastTrading = i === 3
-                  const isLastSalud   = i === 3 + saludCols
-                  const isSectionBorder = isLastTrading || isLastSalud
+                  const hasBorder  = isSectionBorder(i)
                   const isPlaceholder = habit.type === 'placeholder'
                   const noTradingWeekend = habit.type === 'auto' && weekend
 
                   let done: boolean | undefined
-                  let canToggle = false
+                  let canMark = false
 
                   if (isPlaceholder || noTradingWeekend) {
                     done = undefined
-                    canToggle = false
                   } else if (habit.type === 'auto') {
                     const set = autoSets[habit.id]
                     done = set?.has(date) ? true : (!isFuture ? false : undefined)
                   } else {
                     done = habitLogs[habit.id]?.[date]
-                    canToggle = !isFuture
+                    canMark = !isFuture
                   }
 
+                  const borderStyle = hasBorder ? '2px solid #d4d4d8' : '1px solid #f4f4f5'
+
+                  // Auto habits: full-width cell, read-only
+                  if (habit.type === 'auto') {
+                    return (
+                      <div
+                        key={habit.id}
+                        style={{
+                          width: CELL, minWidth: CELL,
+                          borderRight: borderStyle,
+                          backgroundColor: done === true ? '#f97316' : done === false && !isFuture && !noTradingWeekend ? '#09090b' : 'transparent',
+                        }}
+                        className="flex items-center justify-center"
+                      >
+                        {done === true && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                        {done === false && !isFuture && !noTradingWeekend && (
+                          <span style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>×</span>
+                        )}
+                        {done === undefined && !isFuture && !noTradingWeekend && (
+                          <span style={{ fontSize: 7, color: '#d4d4d8' }}>●</span>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  // Placeholder: empty, non-interactive
+                  if (isPlaceholder) {
+                    return (
+                      <div
+                        key={habit.id}
+                        style={{ width: CELL, minWidth: CELL, borderRight: borderStyle }}
+                      />
+                    )
+                  }
+
+                  // Custom habits: split-cell (left = ✓ done, right = × not done)
                   return (
-                    <button
+                    <div
                       key={habit.id}
-                      onClick={() => canToggle && handleToggle(habit.id, date)}
-                      disabled={!canToggle || isPlaceholder}
-                      style={{
-                        width: CELL, minWidth: CELL,
-                        borderRight: isSectionBorder ? '2px solid #d4d4d8' : '1px solid #f4f4f5',
-                        backgroundColor: done === true ? '#f97316' : done === false && !isFuture && !noTradingWeekend ? '#09090b' : 'transparent',
-                      }}
-                      className={`flex items-center justify-center transition-colors ${
-                        canToggle && done === undefined ? 'hover:bg-zinc-50' : ''
-                      }`}
+                      style={{ width: CELL, minWidth: CELL, borderRight: borderStyle, display: 'flex', position: 'relative' }}
                     >
-                      {done === true && (
-                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-                      )}
-                      {done === false && !isFuture && !noTradingWeekend && (
-                        <span style={{ fontSize: 13, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>×</span>
-                      )}
-                      {done === undefined && !isFuture && !isPlaceholder && !noTradingWeekend && (
-                        <span style={{ fontSize: 7, color: '#d4d4d8' }}>●</span>
-                      )}
-                    </button>
+                      {/* Left half: mark done */}
+                      <button
+                        onClick={() => canMark && handleMark(habit.id, date, done === true ? null : true)}
+                        disabled={!canMark}
+                        style={{
+                          width: HALF, height: '100%',
+                          backgroundColor: done === true ? '#f97316' : 'transparent',
+                          borderRight: '1px solid #f4f4f5',
+                        }}
+                        className={`flex items-center justify-center transition-colors ${canMark && done !== true ? 'hover:bg-orange-50' : ''}`}
+                      >
+                        {done === true && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                        {done === undefined && !isFuture && (
+                          <span style={{ fontSize: 7, color: '#d4d4d8' }}>●</span>
+                        )}
+                      </button>
+
+                      {/* Right half: mark not done */}
+                      <button
+                        onClick={() => canMark && handleMark(habit.id, date, done === false ? null : false)}
+                        disabled={!canMark}
+                        style={{
+                          width: HALF, height: '100%',
+                          backgroundColor: done === false && !isFuture ? '#09090b' : 'transparent',
+                        }}
+                        className={`flex items-center justify-center transition-colors ${canMark && done !== false ? 'hover:bg-zinc-100' : ''}`}
+                      >
+                        {done === false && !isFuture && (
+                          <span style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>×</span>
+                        )}
+                      </button>
+                    </div>
                   )
                 })}
               </div>
@@ -435,32 +530,27 @@ export function HabitTracker({ userId }: { userId: string }) {
 
       {/* Add habit buttons */}
       {!addingTo && (
-        <div className="flex gap-3">
-          <button
-            onClick={() => { setAddingTo('salud'); setNewName('') }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors"
-            style={{ borderColor: SECTION_STYLES.salud.bg, backgroundColor: SECTION_STYLES.salud.bg, color: SECTION_STYLES.salud.text }}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Agregar hábito en Salud
-          </button>
-          <button
-            onClick={() => { setAddingTo('personal'); setNewName('') }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors"
-            style={{ borderColor: SECTION_STYLES.personal.bg, backgroundColor: SECTION_STYLES.personal.bg, color: SECTION_STYLES.personal.text }}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Agregar hábito en Personal
-          </button>
+        <div className="flex flex-wrap gap-3">
+          {(['salud', 'personal', 'proyectos', 'educacion'] as const).map(section => (
+            <button
+              key={section}
+              onClick={() => { setAddingTo(section); setNewName('') }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors"
+              style={{ borderColor: SECTION_STYLES[section].bg, backgroundColor: SECTION_STYLES[section].bg, color: SECTION_STYLES[section].text }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Agregar en {sectionLabel(section)}
+            </button>
+          ))}
         </div>
       )}
 
       {/* Add habit form */}
-      {addingTo && (
+      {addingTo && addingTo !== 'trading' && (
         <div ref={formRef} className="rounded-lg border-2 p-4 space-y-3"
           style={{ borderColor: SECTION_STYLES[addingTo].bg, backgroundColor: `${SECTION_STYLES[addingTo].bg}40` }}>
           <p className="text-sm font-bold uppercase tracking-widest" style={{ color: SECTION_STYLES[addingTo].text }}>
-            Nuevo hábito en {addingTo === 'salud' ? 'Salud' : 'Personal'}
+            Nuevo hábito en {sectionLabel(addingTo)}
           </p>
           <div className="flex gap-2">
             <input
