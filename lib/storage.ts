@@ -14,12 +14,12 @@ export const LEVEL_TYPE_OPTIONS: { value: LevelType; label: string }[] = [
   { value: 'POC',        label: 'POC'         },
   { value: 'VAH',        label: 'VAH'         },
   { value: 'VAL',        label: 'VAL'         },
-  { value: 'VAH (DA)',   label: 'VAH (DA)'    },
-  { value: 'POC (DA)',   label: 'POC (DA)'    },
-  { value: 'VAL (DA)',   label: 'VAL (DA)'    },
-  { value: 'VAH (SA)',   label: 'VAH (SA)'    },
-  { value: 'POC (SA)',   label: 'POC (SA)'    },
-  { value: 'VAL (SA)',   label: 'VAL (SA)'    },
+  { value: 'VAH (DA)',   label: 'VAH (Día Anterior)'    },
+  { value: 'POC (DA)',   label: 'POC (Día Anterior)'    },
+  { value: 'VAL (DA)',   label: 'VAL (Día Anterior)'    },
+  { value: 'VAH (SA)',   label: 'VAH (Semana Anterior)' },
+  { value: 'POC (SA)',   label: 'POC (Semana Anterior)' },
+  { value: 'VAL (SA)',   label: 'VAL (Semana Anterior)' },
   { value: 'Other',      label: 'Otro'        },
 ]
 export type Instrument = 'ES' | 'NQ' | 'MES' | 'MNQ'

@@ -10,11 +10,11 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; bo
   VWAP:        { label: 'VWAP',        color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-300' },
   VAH:         { label: 'VAH',         color: 'text-zinc-700',  bg: 'bg-zinc-100',  border: 'border-zinc-300' },
   VAL:         { label: 'VAL',         color: 'text-zinc-700',  bg: 'bg-zinc-100',  border: 'border-zinc-300' },
-  'VAH (DA)':  { label: 'VAH (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
-  'POC (DA)':  { label: 'POC (DA)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
-  'VAH (SA)':  { label: 'VAH (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
-  'POC (SA)':  { label: 'POC (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
-  'VAL (SA)':  { label: 'VAL (SA)',    color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'VAH (DA)':  { label: 'VAH (Día Anterior)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'POC (DA)':  { label: 'POC (Día Anterior)',    color: 'text-zinc-600',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'VAH (SA)':  { label: 'VAH (Semana Anterior)', color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'POC (SA)':  { label: 'POC (Semana Anterior)', color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
+  'VAL (SA)':  { label: 'VAL (Semana Anterior)', color: 'text-zinc-500',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
   Other:       { label: 'Otro',        color: 'text-zinc-400',  bg: 'bg-zinc-50',   border: 'border-zinc-200' },
 }
 

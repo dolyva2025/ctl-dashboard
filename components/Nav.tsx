@@ -7,10 +7,11 @@ import { usePreview } from '@/lib/previewContext'
 import { isAdmin } from '@/lib/config'
 
 const links = [
-  { href: '/', label: 'Pre-Mercado' },
-  { href: '/levels', label: 'Niveles' },
+  { href: '/', label: 'Análisis Pre Sesión' },
+  { href: '/levels', label: 'Pre-Market Plan' },
   { href: '/rules', label: 'Reglas' },
   { href: '/journal', label: 'Diario' },
+  { href: '/habitos', label: 'Hábitos' },
 ]
 
 export function Nav() {

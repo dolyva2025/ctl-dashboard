@@ -46,8 +46,8 @@ export default function LevelsPage() {
     <div className="max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-primary mb-1">Pre-Mercado</p>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Niveles de Interés</h1>
+          <p className="text-sm font-medium uppercase tracking-widest text-primary mb-1">Sesión</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Pre-Market Plan</h1>
           <p className="text-muted-foreground mt-1 capitalize">{today}</p>
         </div>
         <WeekSelector selected={date} onChange={setDate} includeSunday />

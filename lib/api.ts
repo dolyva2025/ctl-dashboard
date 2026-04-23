@@ -255,6 +255,72 @@ export async function deleteUserRule(id: string): Promise<void> {
   await supabase.from('user_rules').delete().eq('id', id)
 }
 
+// ── Custom Habits ─────────────────────────────────────────────────────────────
+
+export type CustomHabit = {
+  id: string
+  name: string
+  section: string
+}
+
+export async function getAutoHabitData(userId: string, since: string): Promise<{
+  analysisDates: string[]
+  prepDates: string[]
+  rulesDates: string[]
+  journalDates: string[]
+}> {
+  const [routines, trades, ruleChecks] = await Promise.all([
+    supabase.from('routines').select('date, answers, completed').eq('user_id', userId).gte('date', since),
+    supabase.from('trades').select('date').eq('user_id', userId).gte('date', since),
+    supabase.from('rule_checks').select('date').eq('user_id', userId).eq('checked', true).gte('date', since),
+  ])
+  const unique = (rows: { date: string }[]) => Array.from(new Set(rows.map(r => r.date)))
+  const allRoutines = routines.data ?? []
+  return {
+    analysisDates: unique(allRoutines.filter(r => Array.isArray(r.answers) && r.answers.some((a: unknown) => a !== null))),
+    prepDates:     unique(allRoutines.filter(r => r.completed)),
+    rulesDates:    unique(ruleChecks.data ?? []),
+    journalDates:  unique(trades.data ?? []),
+  }
+}
+
+export async function getCustomHabits(userId: string): Promise<CustomHabit[]> {
+  const { data } = await supabase.from('custom_habits').select('id, name, section').eq('user_id', userId).order('created_at')
+  return (data ?? []).map(r => ({ id: r.id, name: r.name, section: r.section ?? 'personal' }))
+}
+
+export async function addCustomHabit(userId: string, name: string, section: string): Promise<CustomHabit> {
+  const { data, error } = await supabase.from('custom_habits').insert({ user_id: userId, name, section }).select('id, name, section').single()
+  if (error) throw error
+  return { id: data.id, name: data.name, section: data.section }
+}
+
+export async function deleteCustomHabit(id: string): Promise<void> {
+  await supabase.from('custom_habits').delete().eq('id', id)
+}
+
+export async function getAllHabitLogs(userId: string, since: string): Promise<Record<string, Record<string, boolean>>> {
+  const { data } = await supabase.from('habit_logs').select('habit_id, date, done').eq('user_id', userId).gte('date', since)
+  const result: Record<string, Record<string, boolean>> = {}
+  for (const row of data ?? []) {
+    if (!result[row.habit_id]) result[row.habit_id] = {}
+    result[row.habit_id][row.date] = row.done
+  }
+  return result
+}
+
+// value: true = done(✓), false = not done(✗), null = unmarked
+export async function setHabitLog(userId: string, habitId: string, date: string, value: boolean | null): Promise<void> {
+  if (value === null) {
+    await supabase.from('habit_logs').delete().eq('user_id', userId).eq('habit_id', habitId).eq('date', date)
+  } else {
+    await supabase.from('habit_logs').upsert(
+      { user_id: userId, habit_id: habitId, date, done: value },
+      { onConflict: 'user_id,habit_id,date' }
+    )
+  }
+}
+
 // ── Rule Checks ───────────────────────────────────────────────────────────────
 
 export async function getRuleChecks(userId: string, date: string): Promise<Record<string, boolean>> {
