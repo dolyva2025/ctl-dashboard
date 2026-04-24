@@ -16,7 +16,6 @@ const ACCENT = 'oklch(68% 0.19 42)'
 const DAYS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie']
 const INSTRUMENTS: Instrument[] = ['ES', 'NQ', 'MES', 'MNQ']
 
-const SETUP_LEVEL_TYPES = ['Resistencia', 'Soporte', 'POC', 'VAH', 'VAL', 'VWAP']
 
 interface Setup {
   id: string

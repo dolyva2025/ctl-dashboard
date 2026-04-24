@@ -85,7 +85,7 @@ export default function JournalPage() {
   const muted   = isDark ? 'hsl(228 30% 55%)' : '#71717a'
   const border  = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
   const surface = isDark ? 'hsl(226 48% 11%)' : '#ffffff'
-  const surf2   = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'
+
   const inputBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'
   const shadow  = isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.06)'
 

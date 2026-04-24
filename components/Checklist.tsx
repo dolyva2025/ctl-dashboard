@@ -126,7 +126,7 @@ export function Checklist({ userId, date }: Props) {
   const border   = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
   const text     = isDark ? 'hsl(228 100% 95%)' : '#09090b'
   const muted    = isDark ? 'hsl(228 30% 55%)' : '#71717a'
-  const surf2    = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'
+
   const shadow   = isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.06)'
 
   const card: React.CSSProperties = {
