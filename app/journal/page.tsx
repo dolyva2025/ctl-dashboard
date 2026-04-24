@@ -1,388 +1,377 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TradeForm } from '@/components/TradeForm'
-import { TradeTable } from '@/components/TradeTable'
-import type { Trade, AccountType } from '@/lib/storage'
-import { ACCOUNT_TYPES } from '@/lib/storage'
 import { useAuth } from '@/lib/useAuth'
-import { todayDate, localDateStr } from '@/lib/storage'
+import { useTheme } from '@/lib/themeContext'
+import { todayDate } from '@/lib/storage'
 import * as api from '@/lib/api'
+import type { Trade } from '@/lib/storage'
 
-type Period = 'week' | 'month' | 'all'
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-function getWeekStart(): string {
-  const today = new Date()
-  const day = today.getDay()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
-  return localDateStr(monday)
-}
-
-function getMonthStart(): string {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
-}
-
-const ACCOUNT_LABELS: Record<AccountType, string> = {
-  'Evaluación': 'Evaluación',
-  'Funded': 'Funded',
-  'Personal': 'Personal',
-}
-
-const PERIODS: { key: Period; label: string }[] = [
-  { key: 'week', label: 'Semana' },
-  { key: 'month', label: 'Mes' },
-  { key: 'all', label: 'Historial' },
+const ACCENT  = 'oklch(68% 0.19 42)'
+const MOODS   = ['😴', '😰', '😐', '😊', '🔥']
+const SESGOS  = [
+  { label: '▲ Alcista', value: 'Alcista', color: 'oklch(72% 0.18 155)' },
+  { label: '▼ Bajista', value: 'Bajista', color: 'oklch(65% 0.18 25)' },
+  { label: '— Neutral', value: 'Neutral', color: 'oklch(68% 0.17 240)' },
 ]
 
-// ── Week Strip ────────────────────────────────────────────────────────────────
-
-function WeekStrip({ trades, selectedDay, onSelectDay }: {
-  trades: Trade[]
-  selectedDay: string | null
-  onSelectDay: (date: string | null) => void
-}) {
-  const today = new Date()
-  const dow = today.getDay()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
-
-  const days = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(today.getFullYear(), today.getMonth(), monday.getDate() + i)
-    return d
-  })
-
-  const DAY_LABELS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE']
-  const todayStr = todayDate()
-
-  const byDate: Record<string, Trade[]> = {}
-  for (const t of trades) {
-    if (!byDate[t.date]) byDate[t.date] = []
-    byDate[t.date].push(t)
-  }
-
-  const weekTrades = Object.values(byDate).flat()
-  const weekPnl = weekTrades.reduce((s, t) => s + t.pnl, 0)
-  const weekWins = weekTrades.filter((t) => t.pnl > 0).length
-  const weekWR = weekTrades.length > 0 ? Math.round((weekWins / weekTrades.length) * 100) : null
-
-  function worstRule(dayTrades: Trade[]): string | null {
-    const a = dayTrades.map((t) => t.rule_adherence).filter(Boolean) as string[]
-    if (a.length === 0) return null
-    if (a.some((x) => x === 'No')) return 'No'
-    if (a.some((x) => x === 'Parcialmente')) return 'Parcialmente'
-    return 'Sí'
-  }
-
-  const weekLabel = `Semana del ${monday.getDate()} al ${new Date(monday.getTime() + 4 * 86400000).getDate()} de ${monday.toLocaleDateString('es-ES', { month: 'long' })}`
-
-  return (
-    <div className="rounded-lg border border-zinc-900 bg-white p-5 space-y-4">
-      <p className="text-sm font-semibold text-zinc-900">{weekLabel}</p>
-      <div className="grid grid-cols-5 gap-2">
-        {days.map((d, i) => {
-          const dateStr = localDateStr(d)
-          const dayTrades = byDate[dateStr] ?? []
-          const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
-          const wins = dayTrades.filter((t) => t.pnl > 0).length
-          const winRate = dayTrades.length > 0 ? Math.round((wins / dayTrades.length) * 100) : null
-          const isToday = dateStr === todayStr
-          const isSelected = selectedDay === dateStr
-          const hasTrades = dayTrades.length > 0
-          const rule = worstRule(dayTrades)
-          const ruleBg = rule === 'No' ? 'bg-red-500' : rule === 'Parcialmente' ? 'bg-zinc-400' : 'bg-zinc-900'
-
-          return (
-            <button
-              key={dateStr}
-              onClick={() => hasTrades ? onSelectDay(isSelected ? null : dateStr) : undefined}
-              className={`rounded-lg border border-zinc-900 bg-white p-3 text-left h-[100px] transition-all ${
-                isSelected ? 'ring-2 ring-zinc-900' : isToday ? 'ring-1 ring-zinc-400' : ''
-              } ${hasTrades ? 'hover:bg-zinc-50 cursor-pointer' : 'cursor-default'}`}
-            >
-              <p className={`text-xs font-bold mb-1 ${isToday ? 'text-zinc-900' : 'text-zinc-400'}`}>
-                {DAY_LABELS[i]} {d.getDate()}
-              </p>
-              {hasTrades ? (
-                <div className="space-y-1">
-                  <p className={`text-base font-black leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
-                    {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-zinc-500">{winRate}% WR</p>
-                  {rule && (
-                    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${ruleBg} text-white`}>
-                      {rule}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-zinc-300 mt-3">Sin trades</p>
-              )}
-            </button>
-          )
-        })}
-      </div>
-      <div className="flex items-center gap-6 pt-2 border-t border-zinc-100">
-        <div>
-          <p className="text-xs text-zinc-400">P&L semana</p>
-          <p className={`text-sm font-black ${weekPnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
-            {weekPnl >= 0 ? '+' : ''}${Math.abs(weekPnl).toFixed(2)}
-          </p>
-        </div>
-        {weekWR !== null && (
-          <div>
-            <p className="text-xs text-zinc-400">Win Rate</p>
-            <p className="text-sm font-black text-zinc-900">{weekWR}%</p>
-          </div>
-        )}
-        <div>
-          <p className="text-xs text-zinc-400">Trades</p>
-          <p className="text-sm font-black text-zinc-900">{weekTrades.length}</p>
-        </div>
-        {selectedDay && (
-          <button onClick={() => onSelectDay(null)} className="ml-auto text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
-            Mostrar toda la semana →
-          </button>
-        )}
-      </div>
-    </div>
-  )
+function parsePnl(text: string): number {
+  const sign = text.trim().startsWith('-') ? -1 : 1
+  const num = parseFloat(text.replace(/[^0-9.]/g, ''))
+  return isNaN(num) ? 0 : Math.abs(num) * sign
 }
 
-// ── Month Calendar ────────────────────────────────────────────────────────────
-
-function MonthCalendar({ trades, selectedDay, onSelectDay }: {
-  trades: Trade[]
-  selectedDay: string | null
-  onSelectDay: (date: string | null) => void
-}) {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = today.getMonth()
-
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-
-  // Start grid on Monday
-  const startDow = (firstDay.getDay() + 6) % 7
-  const totalDays = lastDay.getDate()
-
-  // Group trades by date
-  const byDate: Record<string, Trade[]> = {}
-  for (const t of trades) {
-    if (!byDate[t.date]) byDate[t.date] = []
-    byDate[t.date].push(t)
-  }
-
-  function worstRule(dayTrades: Trade[]): string | null {
-    const adherences = dayTrades.map((t) => t.rule_adherence).filter(Boolean) as string[]
-    if (adherences.length === 0) return null
-    if (adherences.some((a) => a === 'No')) return 'No'
-    if (adherences.some((a) => a === 'Parcialmente')) return 'Parcialmente'
-    return 'Sí'
-  }
-
-  // Build 6-column grid (Mon–Sat), skip Sundays
-  const cells: (number | null)[] = []
-  const adjustedStart = startDow < 6 ? startDow : 0
-  for (let i = 0; i < adjustedStart; i++) cells.push(null)
-  for (let day = 1; day <= totalDays; day++) {
-    const dow = (new Date(year, month, day).getDay() + 6) % 7
-    if (dow === 6) continue // skip Sunday
-    cells.push(day)
-  }
-  while (cells.length % 6 !== 0) cells.push(null)
-
-  const monthName = today.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-  const todayStr = todayDate()
-
-  return (
-    <div className="rounded-lg border border-zinc-900 bg-white p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold capitalize text-zinc-900">{monthName}</p>
-        <div className="flex items-center gap-3 text-xs text-zinc-900">
-          <span className="font-medium">Reglas:</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-zinc-900" />Sí, las seguí</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-zinc-400" />Parcialmente</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-red-500" />No las seguí</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-6 gap-1.5">
-        {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'].map((d) => (
-          <p key={d} className="text-xs font-semibold text-zinc-900 text-center py-1">{d}</p>
-        ))}
-        {cells.map((day, i) => {
-          if (!day) return <div key={`e-${i}`} className="h-[96px]" />
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-          const dayTrades = byDate[dateStr] ?? []
-          const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0)
-          const wins = dayTrades.filter((t) => t.pnl > 0).length
-          const winRate = dayTrades.length > 0 ? Math.round((wins / dayTrades.length) * 100) : null
-          const isToday = dateStr === todayStr
-          const isSelected = dateStr === selectedDay
-          const hasTrades = dayTrades.length > 0
-          const rule = worstRule(dayTrades)
-          const ruleBg = rule === 'No' ? 'bg-red-500' : rule === 'Parcialmente' ? 'bg-zinc-400' : 'bg-zinc-900'
-
-          return (
-            <button
-              key={dateStr}
-              onClick={() => hasTrades ? onSelectDay(isSelected ? null : dateStr) : undefined}
-              className={`rounded-lg border border-zinc-900 bg-white p-2 text-left transition-all h-[96px] ${
-                isSelected ? 'ring-2 ring-zinc-900' : isToday ? 'ring-1 ring-zinc-400' : ''
-              } ${hasTrades ? 'hover:bg-zinc-50 cursor-pointer' : 'cursor-default'}`}
-            >
-              <p className="text-xs font-bold mb-1 text-zinc-900">{day}</p>
-              {hasTrades ? (
-                <div className="space-y-1">
-                  <p className={`text-sm font-black leading-none ${pnl >= 0 ? 'text-zinc-900' : 'text-red-500'}`}>
-                    {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-zinc-500">{winRate}% WR · {dayTrades.length} trade{dayTrades.length !== 1 ? 's' : ''}</p>
-                  {rule && (
-                    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded bg-zinc-900 text-white ${ruleBg}`}>
-                      {rule}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-zinc-300 mt-1">No Trades</p>
-              )}
-            </button>
-          )
-        })}
-      </div>
-      {selectedDay && (
-        <button onClick={() => onSelectDay(null)} className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
-          Mostrar todo el mes →
-        </button>
-      )}
-    </div>
-  )
+function formatPnl(n: number): string {
+  if (n === 0) return '$0'
+  return `${n > 0 ? '+' : '-'}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+function pnlColor(n: number, muted: string): string {
+  if (n > 0) return 'oklch(72% 0.18 155)'
+  if (n < 0) return 'oklch(65% 0.18 25)'
+  return muted
+}
+
+interface EntryForm {
+  date: string
+  mood: string
+  titulo: string
+  pnlText: string
+  sesgo: string
+  quePaso: string
+  reglas: string
+  aprendizaje: string
+}
+
+function emptyForm(date: string): EntryForm {
+  return { date, mood: '😐', titulo: '', pnlText: '', sesgo: '', quePaso: '', reglas: '', aprendizaje: '' }
+}
+
+// Pack reflective fields into trade.reflection as JSON
+function packReflection(form: EntryForm): string {
+  return JSON.stringify({ quePaso: form.quePaso, reglas: form.reglas, aprendizaje: form.aprendizaje })
+}
+
+function unpackReflection(r: string | undefined): { quePaso: string; reglas: string; aprendizaje: string } {
+  try { if (r) return JSON.parse(r) } catch {}
+  return { quePaso: r ?? '', reglas: '', aprendizaje: '' }
+}
+
+// ── main page ─────────────────────────────────────────────────────────────────
 
 export default function JournalPage() {
   const { user, loading } = useAuth()
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [period, setPeriod] = useState<Period>('week')
-  const [account, setAccount] = useState<AccountType>('Evaluación')
-  const [weekDay, setWeekDay] = useState<string | null>(null)
-  const [calendarDay, setCalendarDay] = useState<string | null>(null)
+  const { theme } = useTheme()
+  const isDark = theme === 'navy'
+
+  const [entries, setEntries] = useState<Trade[]>([])
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState<EntryForm>(emptyForm(todayDate()))
+  const [saving, setSaving] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
-    api.getTrades(user.id).then(setTrades)
+    api.getTrades(user.id).then(setEntries)
   }, [user])
 
-  async function handleAdd(trade: Omit<Trade, 'id'>) {
-    if (!user) return
-    const newTrade = await api.addTrade(user.id, trade)
-    setTrades((prev) => [newTrade, ...prev])
+  if (loading || !user) return null
+  const userId = user.id
+
+  // Theme tokens
+  const text    = isDark ? 'hsl(228 100% 95%)' : '#09090b'
+  const muted   = isDark ? 'hsl(228 30% 55%)' : '#71717a'
+  const border  = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
+  const surface = isDark ? 'hsl(226 48% 11%)' : '#ffffff'
+  const surf2   = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'
+  const inputBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'
+  const shadow  = isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.06)'
+
+  const card: React.CSSProperties = {
+    background: surface, borderRadius: 12, border: `1px solid ${border}`,
+    boxShadow: shadow, marginBottom: 10, overflow: 'hidden',
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: inputBg, border: `1px solid ${border}`, borderRadius: 8,
+    color: text, padding: '8px 11px', fontSize: 13, width: '100%',
+    boxSizing: 'border-box', fontFamily: 'inherit',
+  }
+
+  const taStyle: React.CSSProperties = {
+    ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 72,
+  }
+
+  function upd(key: keyof EntryForm, val: string) {
+    setForm((p) => ({ ...p, [key]: val }))
+  }
+
+  async function handleSave() {
+    if (!form.titulo.trim()) return
+    setSaving(true)
+    try {
+      const newTrade = await api.addTrade(userId, {
+        date:          form.date,
+        instrument:    'ES',
+        direction:     'Long',
+        entry:         0,
+        stop:          0,
+        target:        0,
+        exit:          0,
+        pnl:           parsePnl(form.pnlText),
+        account_type:  'Personal',
+        emotions:      form.mood,
+        notes:         form.titulo,
+        rule_adherence: form.sesgo || undefined,
+        reflection:    packReflection(form),
+      })
+      setEntries((p) => [newTrade, ...p])
+      setAdding(false)
+      setForm(emptyForm(todayDate()))
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete(id: string) {
     await api.deleteTrade(id)
-    setTrades((prev) => prev.filter((t) => t.id !== id))
+    setEntries((p) => p.filter((e) => e.id !== id))
+    if (openId === id) setOpenId(null)
   }
 
-  async function handleEdit(id: string, updates: Omit<Trade, 'id'>) {
-    const updated = await api.updateTrade(id, updates)
-    setTrades((prev) => prev.map((t) => t.id === id ? updated : t))
+  const sesgoBadgeColor = (sesgo: string | undefined) => {
+    if (sesgo === 'Alcista') return 'oklch(72% 0.18 155)'
+    if (sesgo === 'Bajista') return 'oklch(65% 0.18 25)'
+    return 'oklch(68% 0.17 240)'
   }
-
-  if (loading || !user) return null
-
-  const accountTrades = trades.filter((t) => t.account_type === account)
-
-  const weekStart = getWeekStart()
-  const weekEnd = (() => { const ws = new Date(weekStart + 'T12:00:00'); ws.setDate(ws.getDate() + 4); return localDateStr(ws) })()
-  const weekAccountTrades = accountTrades.filter((t) => t.date >= weekStart && t.date <= weekEnd)
-
-  // Filter by period
-  let visibleTrades: Trade[]
-  if (period === 'week') {
-    visibleTrades = weekDay ? weekAccountTrades.filter((t) => t.date === weekDay) : weekAccountTrades
-  } else if (period === 'month') {
-    const monthStart = getMonthStart()
-    const monthTrades = accountTrades.filter((t) => t.date >= monthStart)
-    visibleTrades = calendarDay ? monthTrades.filter((t) => t.date === calendarDay) : monthTrades
-  } else {
-    visibleTrades = accountTrades
-  }
-
-  const monthAccountTrades = accountTrades.filter((t) => t.date >= getMonthStart())
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '8px 0 40px', color: text }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 }}>
         <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-primary mb-1">Trading</p>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Diario de Trades</h1>
-          <p className="text-muted-foreground mt-1">Registra y revisa tus operaciones</p>
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', color: muted, marginBottom: 4 }}>REGISTRO</div>
+          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', color: text }}>
+            Diario de Trading
+          </h1>
+          <div style={{ fontSize: 13, color: muted, marginTop: 4 }}>
+            {entries.length} {entries.length === 1 ? 'entrada registrada' : 'entradas registradas'}
+          </div>
         </div>
-        <div className="flex items-center gap-1 bg-zinc-100 rounded-xl p-1">
-          {PERIODS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setPeriod(key)}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                period === key
-                  ? 'bg-zinc-900 text-white shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Account tabs */}
-      <div className="flex gap-1 bg-zinc-100 rounded-xl p-1 w-fit">
-        {ACCOUNT_TYPES.map((type) => (
+        {!adding && (
           <button
-            key={type}
-            onClick={() => setAccount(type)}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-              account === type
-                ? 'bg-zinc-900 text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'
-            }`}
+            onClick={() => { setAdding(true); setForm(emptyForm(todayDate())) }}
+            style={{
+              flexShrink: 0, height: 38, padding: '0 18px',
+              background: text, border: 'none', borderRadius: 10,
+              color: isDark ? '#0A0A0C' : '#fff',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            }}
           >
-            {ACCOUNT_LABELS[type]}
+            + Nueva Entrada
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Week strip */}
-      {period === 'week' && (
-        <WeekStrip
-          trades={weekAccountTrades}
-          selectedDay={weekDay}
-          onSelectDay={setWeekDay}
-        />
+      {/* ── New entry form ─────────────────────────────────────────────────── */}
+      {adding && (
+        <div style={{ ...card, marginBottom: 20 }}>
+          <div style={{ padding: '16px 24px', borderBottom: `1px solid ${border}`, fontSize: 13, color: muted }}>
+            {new Date(form.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
+          <div style={{ padding: 24 }}>
+
+            {/* Date selector */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>FECHA DE LA SESIÓN</div>
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => upd('date', e.target.value)}
+                style={{ ...inputStyle, width: 'auto' }}
+              />
+            </div>
+
+            {/* Mood */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 8 }}>ESTADO DE ÁNIMO</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {MOODS.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => upd('mood', m)}
+                    style={{
+                      fontSize: 24, background: form.mood === m ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                      border: `2px solid ${form.mood === m ? (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)') : 'transparent'}`,
+                      borderRadius: 10, padding: '5px 9px', cursor: 'pointer',
+                    }}
+                  >{m}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Título + P&L */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>TÍTULO / RESUMEN</div>
+                <input value={form.titulo} onChange={(e) => upd('titulo', e.target.value)} placeholder="ej. Buen día, seguí el plan" style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>P&amp;L</div>
+                <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
+              </div>
+            </div>
+
+            {/* Sesgo */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 8 }}>SESGO DE LA SESIÓN</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {SESGOS.map(({ label, value, color }) => (
+                  <button
+                    key={value}
+                    onClick={() => upd('sesgo', form.sesgo === value ? '' : value)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+                      background: form.sesgo === value ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                      color: form.sesgo === value ? '#0A0A0C' : muted,
+                    }}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reflection fields */}
+            {[
+              ['¿QUÉ PASÓ?', 'quePaso', 'Describe cómo fue la sesión...'],
+              ['¿SEGUISTE TUS REGLAS?', 'reglas', 'Sí / No / Parcialmente... explica'],
+              ['APRENDIZAJE DEL DÍA', 'aprendizaje', '¿Qué llevarás a mañana?'],
+            ].map(([label, key, ph]) => (
+              <div key={key} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>{label}</div>
+                <textarea
+                  value={form[key as keyof EntryForm]}
+                  onChange={(e) => upd(key as keyof EntryForm, e.target.value)}
+                  placeholder={ph}
+                  style={taStyle}
+                />
+              </div>
+            ))}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button
+                onClick={handleSave}
+                disabled={saving || !form.titulo.trim()}
+                style={{
+                  height: 38, padding: '0 20px',
+                  background: saving || !form.titulo.trim() ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') : ACCENT,
+                  border: 'none', borderRadius: 9,
+                  color: saving || !form.titulo.trim() ? muted : '#0A0A0C',
+                  fontWeight: 700, fontSize: 13, cursor: saving || !form.titulo.trim() ? 'default' : 'pointer',
+                }}
+              >
+                {saving ? 'Guardando...' : 'Guardar Entrada'}
+              </button>
+              <button
+                onClick={() => setAdding(false)}
+                style={{
+                  height: 38, padding: '0 20px', background: 'transparent',
+                  border: `1px solid ${border}`, borderRadius: 9,
+                  color: muted, fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Month calendar */}
-      {period === 'month' && (
-        <MonthCalendar
-          trades={monthAccountTrades}
-          selectedDay={calendarDay}
-          onSelectDay={setCalendarDay}
-        />
+      {/* ── Empty state ────────────────────────────────────────────────────── */}
+      {entries.length === 0 && !adding && (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: muted }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📒</div>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, color: text }}>Sin entradas aún</div>
+          <div style={{ fontSize: 13 }}>Registra tu primera sesión después de operar</div>
+        </div>
       )}
 
-      <div className="rounded-lg border bg-card p-6">
-        <p className="text-sm font-medium uppercase tracking-widest text-primary mb-4">Registrar Trade</p>
-        <TradeForm onAdd={handleAdd} defaultAccount={account} />
-      </div>
+      {/* ── Entry list ─────────────────────────────────────────────────────── */}
+      {entries.map((e) => {
+        const isOpen = openId === e.id
+        const ref = unpackReflection(e.reflection)
+        const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+        const hasPnl = e.pnl !== 0
+        const pColor = pnlColor(e.pnl, muted)
 
-      <div>
-        <TradeTable trades={visibleTrades} onDelete={handleDelete} onEdit={handleEdit} />
-      </div>
+        return (
+          <div key={e.id} style={card}>
+            {/* Card header (always visible) */}
+            <div
+              onClick={() => setOpenId(isOpen ? null : e.id)}
+              style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+            >
+              <div style={{ fontSize: 26, flexShrink: 0 }}>{e.emotions ?? '😐'}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {e.notes || 'Sin título'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, color: muted }}>{dateLabel}</span>
+                  {e.rule_adherence && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                      padding: '2px 6px', borderRadius: 5,
+                      background: sesgoBadgeColor(e.rule_adherence) + '22',
+                      color: sesgoBadgeColor(e.rule_adherence),
+                    }}>
+                      {e.rule_adherence.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {hasPnl && (
+                <div style={{ fontSize: 16, fontWeight: 800, color: pColor, flexShrink: 0 }}>
+                  {formatPnl(e.pnl)}
+                </div>
+              )}
+              <div style={{ color: muted, fontSize: 11, flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</div>
+            </div>
+
+            {/* Expanded content */}
+            {isOpen && (
+              <div style={{ padding: '0 20px 20px', borderTop: `1px solid ${border}` }}>
+                {[
+                  ['¿QUÉ PASÓ?', ref.quePaso],
+                  ['¿SEGUISTE TUS REGLAS?', ref.reglas],
+                  ['APRENDIZAJE', ref.aprendizaje],
+                ].map(([label, val]) => val ? (
+                  <div key={label} style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.7, color: text, opacity: 0.8, whiteSpace: 'pre-wrap' }}>{val}</div>
+                  </div>
+                ) : null)}
+
+                <button
+                  onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id) }}
+                  style={{
+                    marginTop: 20, background: 'transparent',
+                    border: `1px solid ${border}`, borderRadius: 8,
+                    color: muted, fontSize: 12, padding: '5px 12px', cursor: 'pointer',
+                    opacity: 0.7,
+                  }}
+                >
+                  Eliminar entrada
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
