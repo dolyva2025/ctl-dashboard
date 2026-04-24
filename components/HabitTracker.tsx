@@ -7,7 +7,7 @@ import { localDateStr } from '@/lib/storage'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const CELL = 60
+const CELL = 42
 const HALF = CELL / 2
 const DAY_COL = 76
 
@@ -361,7 +361,7 @@ export function HabitTracker({ userId }: { userId: string }) {
 
                   {/* Vertical name */}
                   <div
-                    style={{ height: 110, width: CELL, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isPlaceholder ? 'pointer' : 'default' }}
+                    style={{ height: 130, width: CELL, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isPlaceholder ? 'pointer' : 'default' }}
                     onClick={() => isPlaceholder && (setAddingTo(habit.section as Section), setNewName(''))}
                   >
                     {isPlaceholder ? (
@@ -377,9 +377,8 @@ export function HabitTracker({ userId }: { userId: string }) {
                           color: '#18181b',
                           letterSpacing: '0.02em',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          maxHeight: 104,
                           whiteSpace: 'nowrap',
+                          maxHeight: 124,
                         }}
                       >
                         {habit.name}
