@@ -74,6 +74,8 @@ export default function LevelsPage() {
 
   const [date, setDate] = useState(todayDate())
   const [mainTab, setMainTab] = useState<'ctl' | 'mia'>('ctl')
+  const [ctlWeeklyOpen, setCtlWeeklyOpen] = useState(false)
+  const [miaWeeklyOpen, setMiaWeeklyOpen] = useState(false)
 
   // CTL weekly bias (for display at top)
   const [weeklyBias, setWeeklyBias] = useState<string>('')
@@ -332,17 +334,28 @@ export default function LevelsPage() {
             </div>
 
             <div style={card}>
-              <div style={sectionHead('CTL SEMANAL', 'oklch(70% 0.17 240)')}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'oklch(70% 0.17 240)' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(70% 0.17 240)' }}>
-                  COLLECTIVE TRADE LAB — ANÁLISIS SEMANAL
-                </span>
-              </div>
-              <div style={{ padding: 20 }}>
-                <CTLBias date={sundayStr} userEmail={user.email} hideHeader />
-                <div style={{ height: 1, background: t.border, margin: '20px 0' }} />
-                <CTLLevels date={sundayStr} userEmail={user.email} hideHeader />
-              </div>
+              <button
+                onClick={() => setCtlWeeklyOpen((v) => !v)}
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'oklch(70% 0.17 240)' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(70% 0.17 240)' }}>
+                    COLLECTIVE TRADE LAB — ANÁLISIS SEMANAL
+                  </span>
+                </div>
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  style={{ transform: ctlWeeklyOpen ? 'rotate(180deg)' : 'none', transition: '0.2s', color: t.muted, flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+              {ctlWeeklyOpen && (
+                <div style={{ borderTop: `1px solid ${t.border}`, padding: 20 }}>
+                  <CTLBias date={sundayStr} userEmail={user.email} hideHeader />
+                  <div style={{ height: 1, background: t.border, margin: '20px 0' }} />
+                  <CTLLevels date={sundayStr} userEmail={user.email} hideHeader />
+                </div>
+              )}
             </div>
           </div>
 
@@ -397,13 +410,23 @@ export default function LevelsPage() {
             </div>
 
             <div style={card}>
-              <div style={sectionHead('MI SEMANAL', 'oklch(70% 0.17 240)')}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'oklch(70% 0.17 240)' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(70% 0.17 240)' }}>
-                  MI ANÁLISIS SEMANAL
-                </span>
-              </div>
-              <div style={{ padding: 20 }}>
+              <button
+                onClick={() => setMiaWeeklyOpen((v) => !v)}
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'oklch(70% 0.17 240)' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(70% 0.17 240)' }}>
+                    MI ANÁLISIS SEMANAL
+                  </span>
+                </div>
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  style={{ transform: miaWeeklyOpen ? 'rotate(180deg)' : 'none', transition: '0.2s', color: t.muted, flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+              {miaWeeklyOpen && (
+              <div style={{ borderTop: `1px solid ${t.border}`, padding: 20 }}>
 
                 {/* Bias buttons */}
                 <div style={{ marginBottom: 16 }}>
@@ -447,6 +470,7 @@ export default function LevelsPage() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           </div>
 
