@@ -3,27 +3,51 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Light theme ────────────────────────────────────────────────────────── */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 98%;
+    --foreground: 240 6% 7%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 6% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 6% 7%;
     --primary: 240 5.9% 10%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
+    --secondary: 240 5% 96%;
     --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
     --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
+  }
+
+  /* ── Navy / Dark theme ──────────────────────────────────────────────────── */
+  .dark {
+    --background: 231 60% 7%;       /* #070A1C */
+    --foreground: 228 100% 95%;     /* #E8EEFF */
+    --card: 226 48% 11%;            /* #0E1428 */
+    --card-foreground: 228 100% 95%;
+    --popover: 226 48% 11%;
+    --popover-foreground: 228 100% 95%;
+    --primary: 228 100% 95%;
+    --primary-foreground: 231 60% 7%;
+    --secondary: 223 44% 15%;       /* #162038 */
+    --secondary-foreground: 228 100% 95%;
+    --muted: 223 44% 15%;
+    --muted-foreground: 227 31% 55%; /* #6878B0 */
+    --accent: 223 44% 15%;
+    --accent-foreground: 228 100% 95%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 228 100% 95%;
+    --border: 228 30% 17%;
+    --input: 228 30% 17%;
+    --ring: 228 100% 75%;
   }
 
   * {
@@ -32,6 +56,10 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading, inherit);
   }
 }
 
