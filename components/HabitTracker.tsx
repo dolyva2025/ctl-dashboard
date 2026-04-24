@@ -3,17 +3,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import * as api from '@/lib/api'
 import { localDateStr } from '@/lib/storage'
+import { useTheme } from '@/lib/themeContext'
 
-// ── Theme & Colors ─────────────────────────────────────────────────────────────
-
-const T = {
-  bg:      '#070A1C',
-  surface: '#0E1428',
-  surface2:'#162038',
-  border:  'rgba(100,130,255,0.12)',
-  text:    '#E8EEFF',
-  muted:   '#6878B0',
-}
+// ── Colors ─────────────────────────────────────────────────────────────────────
 
 const COLORS: Record<string, { main: string; dim: string; checkColor: string }> = {
   trading:   { main: 'oklch(68% 0.19 42)',  dim: 'oklch(68% 0.19 42 / 0.14)',  checkColor: '#0A0A0C' },
@@ -21,6 +13,23 @@ const COLORS: Record<string, { main: string; dim: string; checkColor: string }> 
   personal:  { main: 'oklch(70% 0.17 240)', dim: 'oklch(70% 0.17 240 / 0.14)', checkColor: '#0A0A0C' },
   proyectos: { main: 'oklch(68% 0.18 290)', dim: 'oklch(68% 0.18 290 / 0.14)', checkColor: '#ffffff' },
   educacion: { main: 'oklch(78% 0.17 88)',  dim: 'oklch(78% 0.17 88 / 0.14)',  checkColor: '#0A0A0C' },
+}
+
+const DARK_T = {
+  bg:      '#070A1C',
+  surface: '#0E1428',
+  surface2:'#162038',
+  border:  'rgba(100,130,255,0.12)',
+  text:    '#E8EEFF',
+  muted:   '#6878B0',
+}
+const LIGHT_T = {
+  bg:      '#ffffff',
+  surface: '#ffffff',
+  surface2:'#f4f4f5',
+  border:  'rgba(0,0,0,0.08)',
+  text:    '#111112',
+  muted:   '#8A8A97',
 }
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
@@ -56,17 +65,20 @@ const AUTO_HABITS = [
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function HabitTracker({ userId }: { userId: string }) {
+  const { theme } = useTheme()
+  const T = theme === 'navy' ? DARK_T : LIGHT_T
+
   const now = new Date()
-  const [offset, setOffset]           = useState(0)
-  const [analysisDates, setAnalysis]  = useState<string[]>([])
-  const [prepDates, setPrep]          = useState<string[]>([])
-  const [rulesDates, setRules]        = useState<string[]>([])
-  const [journalDates, setJournal]    = useState<string[]>([])
-  const [customHabits, setCustom]     = useState<api.CustomHabit[]>([])
-  const [habitLogs, setHabitLogs]     = useState<Record<string, Record<string, boolean>>>({})
-  const [addingTo, setAddingTo]       = useState<Section | null>(null)
-  const [newName, setNewName]         = useState('')
-  const [error, setError]             = useState<string | null>(null)
+  const [offset, setOffset]         = useState(0)
+  const [analysisDates, setAnalysis] = useState<string[]>([])
+  const [prepDates, setPrep]         = useState<string[]>([])
+  const [rulesDates, setRules]       = useState<string[]>([])
+  const [journalDates, setJournal]   = useState<string[]>([])
+  const [customHabits, setCustom]    = useState<api.CustomHabit[]>([])
+  const [habitLogs, setHabitLogs]    = useState<Record<string, Record<string, boolean>>>({})
+  const [addingTo, setAddingTo]      = useState<Section | null>(null)
+  const [newName, setNewName]        = useState('')
+  const [error, setError]            = useState<string | null>(null)
 
   const base  = new Date(now.getFullYear(), now.getMonth() + offset, 1)
   const year  = base.getFullYear()
@@ -134,7 +146,6 @@ export function HabitTracker({ userId }: { userId: string }) {
 
   // ── Stats ────────────────────────────────────────────────────────────────────
 
-  const allCustom = customHabits
   const maxDay = isCurMonth ? now.getDate() : days
   let tot = 0, dn = 0, curStr = 0, bestStr = 0, cur = 0
 
@@ -148,21 +159,19 @@ export function HabitTracker({ userId }: { userId: string }) {
       tot++
       if (autoSets[h.id]?.has(dk)) dn++
     })
-    allCustom.forEach(h => {
+    customHabits.forEach(h => {
       tot++
       if (habitLogs[h.id]?.[dk]) dn++
     })
 
     const anyDone =
       (!weekend && AUTO_HABITS.some(h => autoSets[h.id]?.has(dk))) ||
-      allCustom.some(h => habitLogs[h.id]?.[dk])
+      customHabits.some(h => habitLogs[h.id]?.[dk])
 
     if (anyDone) { cur++; bestStr = Math.max(bestStr, cur) } else cur = 0
   }
   if (isCurMonth) curStr = cur
   const rate = tot > 0 ? Math.round((dn / tot) * 100) : 0
-
-  // ── Streak per habit ─────────────────────────────────────────────────────────
 
   function habitStreak(habitId: string, isAuto: boolean, isTrading: boolean): number {
     let s = 0
@@ -180,9 +189,12 @@ export function HabitTracker({ userId }: { userId: string }) {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const accent = 'oklch(68% 0.19 42)'
+  // Heights for sticky rows (section header ~40px, habit names ~120px)
+  const SEC_H = 40
+  const HAB_H = 120
 
   return (
-    <div style={{ background: T.bg, borderRadius: 16, padding: '28px 24px', color: T.text, fontFamily: 'inherit' }}>
+    <div style={{ background: T.bg, borderRadius: 16, padding: '28px 24px', color: T.text }}>
 
       {/* Error */}
       {error && (
@@ -201,7 +213,7 @@ export function HabitTracker({ userId }: { userId: string }) {
           </h1>
           <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>Consistencia es tu ventaja</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setOffset(o => o - 1)}
             style={{ width: 34, height: 34, borderRadius: 8, background: T.surface2, border: `1px solid ${T.border}`, color: T.text, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
           <button onClick={() => !isCurMonth && setOffset(o => o + 1)}
@@ -211,11 +223,11 @@ export function HabitTracker({ userId }: { userId: string }) {
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-        {[
+        {([
           ['TASA MENSUAL', `${rate}%`, `${dn}/${tot} hábitos`],
           ['RACHA ACTUAL', `${curStr}d`, curStr > 0 ? '🔥 en racha' : 'sin racha hoy'],
           ['MEJOR RACHA',  `${bestStr}d`, 'este mes'],
-        ].map(([label, val, sub]) => (
+        ] as const).map(([label, val, sub]) => (
           <div key={label} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 18px', minWidth: 120 }}>
             <div style={{ fontSize: 10, color: T.muted, letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
             <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1, color: T.text }}>{val}</div>
@@ -243,36 +255,52 @@ export function HabitTracker({ userId }: { userId: string }) {
             Agregar
           </button>
           <button onClick={() => { setAddingTo(null); setNewName('') }}
-            style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
+            style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
         </div>
       )}
 
-      {/* Grid */}
+      {/* Grid — scroll container with sticky headers */}
       <div style={{ background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 320px)', minHeight: 300 }}>
           <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
             <thead>
-              {/* Section header row */}
+              {/* ── Section header row ── */}
               <tr>
-                <th style={{ width: 72, minWidth: 72, background: T.surface, position: 'sticky', left: 0, zIndex: 3, borderBottom: `1px solid ${T.border}` }} />
+                <th style={{
+                  width: 72, minWidth: 72, background: T.surface,
+                  position: 'sticky', left: 0, top: 0, zIndex: 5,
+                  borderBottom: `1px solid ${T.border}`,
+                  height: SEC_H,
+                }} />
                 {SECTIONS.map(sec => {
                   const c = COLORS[sec.id]
                   const habits = sec.id === 'trading'
                     ? AUTO_HABITS
                     : customHabits.filter(h => h.section === sec.id)
-                  const colSpan = habits.length + 1
+                  // Trading has no spacer column; others do (+1 for the add button)
+                  const colSpan = sec.id === 'trading' ? habits.length : habits.length + 1
                   return (
                     <th key={sec.id} colSpan={colSpan}
-                      style={{ padding: '10px 12px', background: c.dim, borderBottom: `2px solid ${c.main}`, textAlign: 'left', borderRight: `1px solid ${T.border}` }}>
+                      style={{
+                        padding: '10px 12px', background: c.dim,
+                        borderBottom: `2px solid ${c.main}`,
+                        textAlign: 'left', borderRight: `1px solid ${T.border}`,
+                        position: 'sticky', top: 0, zIndex: 4,
+                      }}>
                       <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: c.main }}>{sec.label}</span>
                     </th>
                   )
                 })}
               </tr>
 
-              {/* Habit column headers */}
+              {/* ── Habit column headers ── */}
               <tr>
-                <th style={{ width: 72, minWidth: 72, background: T.surface, position: 'sticky', left: 0, zIndex: 3, borderBottom: `1px solid ${T.border}`, padding: '8px 12px', fontSize: 10, color: T.muted, fontWeight: 500, letterSpacing: '0.08em', textAlign: 'left' }}>
+                <th style={{
+                  width: 72, minWidth: 72, background: T.surface,
+                  position: 'sticky', left: 0, top: SEC_H, zIndex: 5,
+                  borderBottom: `1px solid ${T.border}`,
+                  padding: '8px 12px', fontSize: 10, color: T.muted, fontWeight: 500, letterSpacing: '0.08em', textAlign: 'left',
+                }}>
                   DÍA
                 </th>
                 {SECTIONS.map(sec => {
@@ -284,10 +312,20 @@ export function HabitTracker({ userId }: { userId: string }) {
                     ...habits.map(h => {
                       const s = habitStreak(h.id, sec.id === 'trading', sec.id === 'trading')
                       return (
-                        <th key={h.id} style={{ width: 44, minWidth: 44, padding: '6px 2px', background: c.dim, borderBottom: `1px solid ${T.border}`, textAlign: 'center', verticalAlign: 'bottom' }}>
+                        <th key={h.id} style={{
+                          width: 44, minWidth: 44, padding: '6px 2px',
+                          background: c.dim,
+                          borderBottom: `1px solid ${T.border}`,
+                          textAlign: 'center', verticalAlign: 'bottom',
+                          position: 'sticky', top: SEC_H, zIndex: 4,
+                        }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             {s > 0 && <div style={{ fontSize: 9, color: c.main }}>🔥{s}</div>}
-                            <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 10, fontWeight: 600, color: T.text, opacity: 0.75, whiteSpace: 'nowrap', maxHeight: 90, overflow: 'hidden' }}>{h.name}</div>
+                            <div style={{
+                              writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+                              fontSize: 13, fontWeight: 600, color: T.text,
+                              whiteSpace: 'nowrap', maxHeight: HAB_H - 30, overflow: 'hidden',
+                            }}>{h.name}</div>
                             {sec.id !== 'trading' && (
                               <button onClick={() => handleDeleteHabit(h.id)}
                                 style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', fontSize: 12, opacity: 0.4, lineHeight: 1, padding: '1px 2px' }}
@@ -297,13 +335,19 @@ export function HabitTracker({ userId }: { userId: string }) {
                         </th>
                       )
                     }),
-                    // "+" add button column
-                    <th key={sec.id + '-add'} style={{ width: 34, minWidth: 34, background: c.dim, borderBottom: `1px solid ${T.border}`, textAlign: 'center', borderRight: `1px solid ${T.border}`, padding: 4 }}>
-                      {sec.id !== 'trading' && (
+                    // "+" add button column — not for trading
+                    sec.id !== 'trading' && (
+                      <th key={sec.id + '-add'} style={{
+                        width: 34, minWidth: 34, background: c.dim,
+                        borderBottom: `1px solid ${T.border}`,
+                        textAlign: 'center', borderRight: `1px solid ${T.border}`,
+                        padding: 4,
+                        position: 'sticky', top: SEC_H, zIndex: 4,
+                      }}>
                         <button onClick={() => { setAddingTo(sec.id); setNewName('') }}
                           style={{ background: 'transparent', border: `1px dashed ${c.main}`, color: c.main, borderRadius: 6, width: 22, height: 22, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', opacity: 0.7 }}>+</button>
-                      )}
-                    </th>,
+                      </th>
+                    ),
                   ]
                 })}
               </tr>
@@ -315,14 +359,18 @@ export function HabitTracker({ userId }: { userId: string }) {
                 const d = new Date(year, month, day)
                 const dow = d.getDay()
                 const weekend = isWeekend(dow)
-                const isToday = isCurMonth && now.getDate() === day
+                const isToday  = isCurMonth && now.getDate() === day
                 const isFuture = isCurMonth && day > now.getDate()
                 const dk = dkey(year, month, day)
 
                 return (
-                  <tr key={day} style={{ background: isToday ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
-                    {/* Day label — sticky */}
-                    <td style={{ position: 'sticky', left: 0, zIndex: 2, background: isToday ? T.surface2 : T.surface, padding: '3px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                  <tr key={day} style={{ background: isToday ? (theme === 'navy' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent' }}>
+                    {/* Day label — sticky left */}
+                    <td style={{
+                      position: 'sticky', left: 0, zIndex: 2,
+                      background: isToday ? T.surface2 : T.surface,
+                      padding: '3px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+                    }}>
                       <span style={{ fontSize: 11, color: isToday ? accent : T.muted, fontWeight: isToday ? 700 : 400 }}>{DAYS_ES[dow]} </span>
                       <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? T.text : T.muted }}>{day}</span>
                     </td>
@@ -340,18 +388,17 @@ export function HabitTracker({ userId }: { userId: string }) {
                             ? autoSets[h.id]?.has(dk) ?? false
                             : !!(habitLogs[h.id]?.[dk])
                           const canClick = !disabled && sec.id !== 'trading'
-                          const isPast = !isFuture
 
                           return (
                             <td key={h.id} style={{ padding: '3px 4px', borderBottom: `1px solid ${T.border}`, background: c.dim, textAlign: 'center' }}>
                               {disabled ? (
-                                <div style={{ width: 36, height: 36, borderRadius: 6, background: 'rgba(255,255,255,0.02)', margin: '0 auto' }} />
+                                <div style={{ width: 36, height: 36, borderRadius: 6, background: theme === 'navy' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)', margin: '0 auto' }} />
                               ) : (
                                 <div
                                   onClick={() => canClick && handleToggle(h.id, dk)}
                                   style={{
                                     width: 36, height: 36, borderRadius: 6, margin: '0 auto',
-                                    background: done ? c.main : 'rgba(255,255,255,0.04)',
+                                    background: done ? c.main : (theme === 'navy' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
                                     border: isToday && !done ? `1.5px solid ${c.main}` : `1px solid ${T.border}`,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     cursor: canClick ? 'pointer' : 'default',
@@ -362,16 +409,18 @@ export function HabitTracker({ userId }: { userId: string }) {
                                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                                       <polyline points="2,7 5.5,10.5 12,3.5" stroke={c.checkColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
-                                  ) : isPast ? (
-                                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+                                  ) : !isFuture ? (
+                                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: theme === 'navy' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }} />
                                   ) : null}
                                 </div>
                               )}
                             </td>
                           )
                         }),
-                        // Spacer column
-                        <td key={sec.id + '-sp'} style={{ width: 34, background: c.dim, borderBottom: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}` }} />,
+                        // Spacer column — only for non-trading sections
+                        sec.id !== 'trading' && (
+                          <td key={sec.id + '-sp'} style={{ width: 34, background: c.dim, borderBottom: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}` }} />
+                        ),
                       ]
                     })}
                   </tr>
