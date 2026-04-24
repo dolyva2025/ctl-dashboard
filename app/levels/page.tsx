@@ -183,23 +183,21 @@ export default function LevelsPage() {
     }, 800)
   }
 
-  // ── card header helper ─────────────────────────────────────────────────────
-
-  function CardHeader({ title, color, action }: { title: string; color: string; action?: React.ReactNode }) {
-    return (
-      <div style={{ padding: '12px 20px', background: color + '18', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color }}>{title}</span>
-        {action}
-      </div>
-    )
-  }
-
   // ── level type badge color ─────────────────────────────────────────────────
 
   function typeColor(type: string) {
     if (type === 'Soporte' || type === 'Support') return 'oklch(72% 0.18 155)'
     if (type === 'Resistencia' || type === 'Resistance') return 'oklch(65% 0.18 25)'
     return 'oklch(70% 0.17 240)'
+  }
+
+  function Chevron({ open }: { open: boolean }) {
+    return (
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        style={{ transform: open ? 'rotate(180deg)' : 'none', transition: '0.2s', color: t.muted, flexShrink: 0 }}>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+      </svg>
+    )
   }
 
   return (
@@ -213,83 +211,62 @@ export default function LevelsPage() {
           <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>{dateLabel}</div>
         </div>
 
-        {/* Week strip + Sunday */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {/* Sunday pill */}
-            <button
-              onClick={() => setDate(sundayStr)}
-              style={{
+        {/* Week strip */}
+        <div style={{ display: 'flex', gap: 5 }}>
+          {weekDays.map((d, i) => {
+            const ds = toDateStr(d)
+            const isSelected = ds === date
+            const isToday = d.toDateString() === today.toDateString()
+            return (
+              <button key={i} onClick={() => setDate(ds)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                 padding: '6px 10px', borderRadius: 9, border: 'none', cursor: 'pointer',
-                background: date === sundayStr ? 'oklch(70% 0.17 240)' : t.surf2,
-                outline: date === sundayStr ? 'none' : `1px solid ${t.border}`,
-              }}
-            >
-              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: date === sundayStr ? '#0A0A0C' : t.muted }}>Dom</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: date === sundayStr ? '#0A0A0C' : t.text }}>{sunday.getDate()}</span>
-            </button>
-
-            {/* Mon-Fri */}
-            {weekDays.map((d, i) => {
-              const ds = toDateStr(d)
-              const isSelected = ds === date
-              const isToday = d.toDateString() === today.toDateString()
-              return (
-                <button
-                  key={i}
-                  onClick={() => setDate(ds)}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                    padding: '6px 10px', borderRadius: 9, border: 'none', cursor: 'pointer',
-                    background: isSelected ? ACCENT : t.surf2,
-                    outline: isSelected ? 'none' : `1px solid ${t.border}`,
-                  }}
-                >
-                  <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: isSelected ? '#0A0A0C' : t.muted }}>{DAYS_SHORT[i]}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: isSelected ? '#0A0A0C' : t.text }}>{d.getDate()}</span>
-                  {isToday && <div style={{ width: 3, height: 3, borderRadius: '50%', background: isSelected ? 'rgba(0,0,0,0.4)' : ACCENT }} />}
-                </button>
-              )
-            })}
-          </div>
-          <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.06em' }}>
-            {isViewingSunday ? 'WEEKLY PREP — análisis semanal' : 'Selecciona el día'}
-          </div>
+                background: isSelected ? ACCENT : t.surf2,
+                outline: isSelected ? 'none' : `1px solid ${t.border}`,
+              }}>
+                <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: isSelected ? '#0A0A0C' : t.muted }}>{DAYS_SHORT[i]}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: isSelected ? '#0A0A0C' : t.text }}>{d.getDate()}</span>
+                {isToday && <div style={{ width: 3, height: 3, borderRadius: '50%', background: isSelected ? 'rgba(0,0,0,0.4)' : ACCENT }} />}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* ── CTL Analysis (collapsible) ─────────────────────────────────────── */}
-      <div style={card}>
-        <button
-          onClick={() => setCtlOpen((v) => !v)}
-          style={{
-            width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '14px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
-            color: t.text,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT }} />
-            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: t.text }}>
-              {isViewingSunday ? 'WEEKLY PREP — COLLECTIVE TRADE LAB' : 'ANÁLISIS COLLECTIVE TRADE LAB'}
-            </span>
-          </div>
-          <svg
-            width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            style={{ transform: ctlOpen ? 'rotate(180deg)' : 'none', transition: '0.2s', color: t.muted, flexShrink: 0 }}
+      {/* ── Weekly Prep (always at top, collapsible) ───────────────────────── */}
+      {!isViewingSunday && (
+        <div style={{ ...card, borderStyle: 'dashed' }}>
+          <button
+            onClick={() => setCtlOpen((v) => !v)}
+            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', background: 'transparent', border: 'none', cursor: 'pointer', color: t.text }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-          </svg>
-        </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'oklch(70% 0.17 240)' }} />
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: t.text }}>WEEKLY PREP — COLLECTIVE TRADE LAB</span>
+            </div>
+            <Chevron open={ctlOpen} />
+          </button>
+          {ctlOpen && (
+            <div style={{ borderTop: `1px solid ${t.border}`, padding: 20 }}>
+              <CTLBias date={sundayStr} userEmail={user.email} hideHeader />
+              <div style={{ height: 1, background: t.border, margin: '20px 0' }} />
+              <CTLLevels date={sundayStr} userEmail={user.email} hideHeader />
+            </div>
+          )}
+        </div>
+      )}
 
-        {ctlOpen && (
-          <div style={{ borderTop: `1px solid ${t.border}`, padding: 20 }}>
-            <CTLBias date={date} userEmail={user.email} hideHeader />
-            <div style={{ height: 1, background: t.border, margin: '20px 0' }} />
-            <CTLLevels date={date} userEmail={user.email} hideHeader />
-          </div>
-        )}
+      {/* ── Daily CTL Analysis ─────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={{ padding: '13px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: ACCENT }} />
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: t.text }}>ANÁLISIS COLLECTIVE TRADE LAB</span>
+        </div>
+        <div style={{ padding: 20 }}>
+          <CTLBias date={date} userEmail={user.email} hideHeader />
+          <div style={{ height: 1, background: t.border, margin: '20px 0' }} />
+          <CTLLevels date={date} userEmail={user.email} hideHeader />
+        </div>
       </div>
 
       {/* ── Personal plan (only on weekdays) ──────────────────────────────── */}
@@ -297,50 +274,53 @@ export default function LevelsPage() {
         <>
           {/* Key Levels */}
           <div style={card}>
-            <CardHeader
-              title="MIS NIVELES CLAVE"
-              color="oklch(68% 0.19 42)"
-              action={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <select value={addInstrument} onChange={(e) => setAddInstrument(e.target.value as Instrument)} style={{ ...selectStyle, width: 64 }}>
-                    {INSTRUMENTS.map((i) => <option key={i}>{i}</option>)}
-                  </select>
-                  <input
-                    type="number" step="0.25" placeholder="Precio"
-                    value={addPrice} onChange={(e) => setAddPrice(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
-                    style={{ ...inputStyle, width: 96 }}
-                  />
-                  <select value={addType} onChange={(e) => setAddType(e.target.value as LevelType)} style={{ ...selectStyle, width: 110 }}>
-                    {LEVEL_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                  <input
-                    placeholder="Notas (opc.)" value={addNotes}
-                    onChange={(e) => setAddNotes(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
-                    style={{ ...inputStyle, width: 130 }}
-                  />
-                  <button
-                    onClick={handleAddLevel} disabled={savingLevel}
-                    style={{
-                      height: 34, padding: '0 14px', background: ACCENT, border: 'none',
-                      borderRadius: 8, color: '#0A0A0C', fontWeight: 700, fontSize: 13,
-                      cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {savingLevel ? '...' : '+ Nivel'}
-                  </button>
-                </div>
-              }
-            />
+            <div style={{ padding: '12px 20px', background: 'oklch(68% 0.19 42 / 0.12)', borderBottom: `1px solid ${t.border}` }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(68% 0.19 42)' }}>MIS NIVELES CLAVE</span>
+            </div>
+            {/* Add form */}
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>INSTRUMENTO</div>
+                <select value={addInstrument} onChange={(e) => setAddInstrument(e.target.value as Instrument)} style={{ ...selectStyle, width: 74 }}>
+                  {INSTRUMENTS.map((i) => <option key={i}>{i}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>NIVEL CLAVE</div>
+                <input type="number" step="0.25" placeholder="ej. 5250.00"
+                  value={addPrice} onChange={(e) => setAddPrice(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
+                  style={{ ...inputStyle, width: 110 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>TIPO</div>
+                <select value={addType} onChange={(e) => setAddType(e.target.value as LevelType)} style={{ ...selectStyle, width: 130 }}>
+                  {LEVEL_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>NOTAS</div>
+                <input placeholder="Contexto del nivel..."
+                  value={addNotes} onChange={(e) => setAddNotes(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
+                  style={inputStyle} />
+              </div>
+              <button onClick={handleAddLevel} disabled={savingLevel} style={{
+                height: 34, padding: '0 16px', background: ACCENT, border: 'none',
+                borderRadius: 8, color: '#0A0A0C', fontWeight: 700, fontSize: 13,
+                cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+              }}>
+                {savingLevel ? '...' : '+ Agregar'}
+              </button>
+            </div>
             <div style={{ padding: '14px 20px' }}>
               {userLevels.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: t.muted, fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: '20px 0', color: t.muted, fontSize: 13 }}>
                   Agrega tus niveles clave del día
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '120px 80px 1fr auto', gap: 8, alignItems: 'center' }}>
-                  {['TIPO', 'PRECIO', 'NOTAS', ''].map((h) => (
+                <div style={{ display: 'grid', gridTemplateColumns: '140px 90px 1fr auto', gap: 8, alignItems: 'center' }}>
+                  {['INSTRUMENTO · TIPO', 'PRECIO', 'NOTAS', ''].map((h) => (
                     <div key={h} style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', paddingBottom: 6 }}>{h}</div>
                   ))}
                   {[...userLevels].sort((a, b) => b.price - a.price).map((l) => {
@@ -359,11 +339,8 @@ export default function LevelsPage() {
                         <span key={l.id + 'notes'} style={{ fontSize: 12, color: t.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {l.notes ?? '—'}
                         </span>
-                        <button
-                          key={l.id + 'del'}
-                          onClick={() => handleDeleteLevel(l.id)}
-                          style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px', opacity: 0.6 }}
-                        >×</button>
+                        <button key={l.id + 'del'} onClick={() => handleDeleteLevel(l.id)}
+                          style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px', opacity: 0.6 }}>×</button>
                       </>
                     )
                   })}
@@ -374,21 +351,18 @@ export default function LevelsPage() {
 
           {/* Setups Planeados */}
           <div style={card}>
-            <CardHeader
-              title="SETUPS PLANEADOS"
-              color="oklch(70% 0.17 240)"
-              action={
-                <button
-                  onClick={addSetup}
-                  style={{
-                    background: 'transparent', border: '1px solid oklch(70% 0.17 240 / 0.4)',
-                    color: 'oklch(70% 0.17 240)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
-                  }}
-                >
-                  + Setup
-                </button>
-              }
-            />
+            <div style={{ padding: '12px 20px', background: 'oklch(70% 0.17 240 / 0.12)', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(70% 0.17 240)' }}>SETUPS PLANEADOS</span>
+              <button
+                onClick={addSetup}
+                style={{
+                  background: 'transparent', border: '1px solid oklch(70% 0.17 240 / 0.4)',
+                  color: 'oklch(70% 0.17 240)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
+                }}
+              >
+                + Setup
+              </button>
+            </div>
             <div style={{ padding: 14 }}>
               {setups.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: t.muted, fontSize: 13 }}>

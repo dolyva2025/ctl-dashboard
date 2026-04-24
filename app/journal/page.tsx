@@ -16,6 +16,12 @@ const SESGOS  = [
   { label: '▼ Bajista', value: 'Bajista', color: 'oklch(65% 0.18 25)' },
   { label: '— Neutral', value: 'Neutral', color: 'oklch(68% 0.17 240)' },
 ]
+const REGLAS_OPTS = [
+  { label: 'Sí',           color: 'oklch(72% 0.18 155)' },
+  { label: 'No',           color: 'oklch(65% 0.18 25)'  },
+  { label: 'Parcialmente', color: 'oklch(78% 0.17 88)'  },
+]
+const INSTRUMENTS = ['ES', 'NQ', 'MES', 'MNQ']
 
 function parsePnl(text: string): number {
   const sign = text.trim().startsWith('-') ? -1 : 1
@@ -40,23 +46,36 @@ interface EntryForm {
   titulo: string
   pnlText: string
   sesgo: string
+  instrument: string
+  entrada: string
+  salida: string
+  stop: string
   quePaso: string
   reglas: string
+  notas: string
   aprendizaje: string
 }
 
 function emptyForm(date: string): EntryForm {
-  return { date, mood: '😐', titulo: '', pnlText: '', sesgo: '', quePaso: '', reglas: '', aprendizaje: '' }
+  return {
+    date, mood: '😐', titulo: '', pnlText: '', sesgo: '',
+    instrument: 'ES', entrada: '', salida: '', stop: '',
+    quePaso: '', reglas: '', notas: '', aprendizaje: '',
+  }
 }
 
-// Pack reflective fields into trade.reflection as JSON
 function packReflection(form: EntryForm): string {
-  return JSON.stringify({ quePaso: form.quePaso, reglas: form.reglas, aprendizaje: form.aprendizaje })
+  return JSON.stringify({
+    quePaso: form.quePaso,
+    reglas: form.reglas,
+    notas: form.notas,
+    aprendizaje: form.aprendizaje,
+  })
 }
 
-function unpackReflection(r: string | undefined): { quePaso: string; reglas: string; aprendizaje: string } {
-  try { if (r) return JSON.parse(r) } catch {}
-  return { quePaso: r ?? '', reglas: '', aprendizaje: '' }
+function unpackReflection(r: string | undefined): { quePaso: string; reglas: string; notas: string; aprendizaje: string } {
+  try { if (r) return { notas: '', ...JSON.parse(r) } } catch {}
+  return { quePaso: r ?? '', reglas: '', notas: '', aprendizaje: '' }
 }
 
 // ── main page ─────────────────────────────────────────────────────────────────
@@ -104,6 +123,10 @@ export default function JournalPage() {
     ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 72,
   }
 
+  const label11: React.CSSProperties = {
+    fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6,
+  }
+
   function upd(key: keyof EntryForm, val: string) {
     setForm((p) => ({ ...p, [key]: val }))
   }
@@ -113,19 +136,19 @@ export default function JournalPage() {
     setSaving(true)
     try {
       const newTrade = await api.addTrade(userId, {
-        date:          form.date,
-        instrument:    'ES',
-        direction:     'Long',
-        entry:         0,
-        stop:          0,
-        target:        0,
-        exit:          0,
-        pnl:           parsePnl(form.pnlText),
-        account_type:  'Personal',
-        emotions:      form.mood,
-        notes:         form.titulo,
+        date:           form.date,
+        instrument:     form.instrument as Trade['instrument'],
+        direction:      'Long',
+        entry:          parseFloat(form.entrada) || 0,
+        stop:           parseFloat(form.stop) || 0,
+        target:         0,
+        exit:           parseFloat(form.salida) || 0,
+        pnl:            parsePnl(form.pnlText),
+        account_type:   'Personal',
+        emotions:       form.mood,
+        notes:          form.titulo,
         rule_adherence: form.sesgo || undefined,
-        reflection:    packReflection(form),
+        reflection:     packReflection(form),
       })
       setEntries((p) => [newTrade, ...p])
       setAdding(false)
@@ -145,6 +168,13 @@ export default function JournalPage() {
     if (sesgo === 'Alcista') return 'oklch(72% 0.18 155)'
     if (sesgo === 'Bajista') return 'oklch(65% 0.18 25)'
     return 'oklch(68% 0.17 240)'
+  }
+
+  const reglasBadgeColor = (r: string) => {
+    if (r === 'Sí') return 'oklch(72% 0.18 155)'
+    if (r === 'No') return 'oklch(65% 0.18 25)'
+    if (r === 'Parcialmente') return 'oklch(78% 0.17 88)'
+    return muted
   }
 
   return (
@@ -187,7 +217,7 @@ export default function JournalPage() {
 
             {/* Date selector */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>FECHA DE LA SESIÓN</div>
+              <div style={label11}>FECHA DE LA SESIÓN</div>
               <input
                 type="date"
                 value={form.date}
@@ -198,14 +228,15 @@ export default function JournalPage() {
 
             {/* Mood */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 8 }}>ESTADO DE ÁNIMO</div>
+              <div style={label11}>ESTADO DE ÁNIMO</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {MOODS.map((m) => (
                   <button
                     key={m}
                     onClick={() => upd('mood', m)}
                     style={{
-                      fontSize: 24, background: form.mood === m ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                      fontSize: 24,
+                      background: form.mood === m ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent',
                       border: `2px solid ${form.mood === m ? (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)') : 'transparent'}`,
                       borderRadius: 10, padding: '5px 9px', cursor: 'pointer',
                     }}
@@ -217,20 +248,20 @@ export default function JournalPage() {
             {/* Título + P&L */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>TÍTULO / RESUMEN</div>
+                <div style={label11}>TÍTULO / RESUMEN</div>
                 <input value={form.titulo} onChange={(e) => upd('titulo', e.target.value)} placeholder="ej. Buen día, seguí el plan" style={inputStyle} />
               </div>
               <div>
-                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>P&amp;L</div>
+                <div style={label11}>P&amp;L</div>
                 <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
               </div>
             </div>
 
             {/* Sesgo */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 8 }}>SESGO DE LA SESIÓN</div>
+              <div style={label11}>SESGO DE LA SESIÓN</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {SESGOS.map(({ label, value, color }) => (
+                {SESGOS.map(({ label: lbl, value, color }) => (
                   <button
                     key={value}
                     onClick={() => upd('sesgo', form.sesgo === value ? '' : value)}
@@ -239,27 +270,107 @@ export default function JournalPage() {
                       background: form.sesgo === value ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
                       color: form.sesgo === value ? '#0A0A0C' : muted,
                     }}
-                  >{label}</button>
+                  >{lbl}</button>
                 ))}
               </div>
             </div>
 
-            {/* Reflection fields */}
-            {[
-              ['¿QUÉ PASÓ?', 'quePaso', 'Describe cómo fue la sesión...'],
-              ['¿SEGUISTE TUS REGLAS?', 'reglas', 'Sí / No / Parcialmente... explica'],
-              ['APRENDIZAJE DEL DÍA', 'aprendizaje', '¿Qué llevarás a mañana?'],
-            ].map(([label, key, ph]) => (
-              <div key={key} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 6 }}>{label}</div>
-                <textarea
-                  value={form[key as keyof EntryForm]}
-                  onChange={(e) => upd(key as keyof EntryForm, e.target.value)}
-                  placeholder={ph}
-                  style={taStyle}
+            {/* Instrumento + Entrada / Salida / Stop */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 90 }}>
+                <div style={label11}>INSTRUMENTO</div>
+                <select
+                  value={form.instrument}
+                  onChange={(e) => upd('instrument', e.target.value)}
+                  style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}
+                >
+                  {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <div style={label11}>ENTRADA</div>
+                <input
+                  type="number"
+                  value={form.entrada}
+                  onChange={(e) => upd('entrada', e.target.value)}
+                  placeholder="5280.00"
+                  style={inputStyle}
                 />
               </div>
-            ))}
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <div style={label11}>SALIDA</div>
+                <input
+                  type="number"
+                  value={form.salida}
+                  onChange={(e) => upd('salida', e.target.value)}
+                  placeholder="5290.00"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <div style={label11}>STOP</div>
+                <input
+                  type="number"
+                  value={form.stop}
+                  onChange={(e) => upd('stop', e.target.value)}
+                  placeholder="5275.00"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            {/* ¿Qué pasó? */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>¿QUÉ PASÓ?</div>
+              <textarea
+                value={form.quePaso}
+                onChange={(e) => upd('quePaso', e.target.value)}
+                placeholder="Describe cómo fue la sesión..."
+                style={taStyle}
+              />
+            </div>
+
+            {/* ¿Seguiste tus reglas? — buttons */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>¿SEGUISTE TUS REGLAS?</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {REGLAS_OPTS.map(({ label: lbl, color }) => (
+                  <button
+                    key={lbl}
+                    onClick={() => upd('reglas', form.reglas === lbl ? '' : lbl)}
+                    style={{
+                      padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      background: form.reglas === lbl ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                      border: `1.5px solid ${form.reglas === lbl ? color : border}`,
+                      color: form.reglas === lbl ? '#0A0A0C' : text,
+                      transition: 'all 0.15s',
+                    }}
+                  >{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notas */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>NOTAS</div>
+              <textarea
+                value={form.notas}
+                onChange={(e) => upd('notas', e.target.value)}
+                placeholder="Notas adicionales sobre la sesión..."
+                style={taStyle}
+              />
+            </div>
+
+            {/* Aprendizaje */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>APRENDIZAJE DEL DÍA</div>
+              <textarea
+                value={form.aprendizaje}
+                onChange={(e) => upd('aprendizaje', e.target.value)}
+                placeholder="¿Qué llevarás a mañana?"
+                style={taStyle}
+              />
+            </div>
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
@@ -307,6 +418,7 @@ export default function JournalPage() {
         const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
         const hasPnl = e.pnl !== 0
         const pColor = pnlColor(e.pnl, muted)
+        const hasPrice = e.entry !== 0 || e.exit !== 0
 
         return (
           <div key={e.id} style={card}>
@@ -322,6 +434,15 @@ export default function JournalPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12, color: muted }}>{dateLabel}</span>
+                  {/* Instrument badge */}
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                    padding: '2px 6px', borderRadius: 5,
+                    background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                    color: muted,
+                  }}>
+                    {e.instrument}
+                  </span>
                   {e.rule_adherence && (
                     <span style={{
                       fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
@@ -330,6 +451,16 @@ export default function JournalPage() {
                       color: sesgoBadgeColor(e.rule_adherence),
                     }}>
                       {e.rule_adherence.toUpperCase()}
+                    </span>
+                  )}
+                  {ref.reglas && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                      padding: '2px 6px', borderRadius: 5,
+                      background: reglasBadgeColor(ref.reglas) + '22',
+                      color: reglasBadgeColor(ref.reglas),
+                    }}>
+                      {ref.reglas.toUpperCase()}
                     </span>
                   )}
                 </div>
@@ -345,13 +476,31 @@ export default function JournalPage() {
             {/* Expanded content */}
             {isOpen && (
               <div style={{ padding: '0 20px 20px', borderTop: `1px solid ${border}` }}>
+
+                {/* Trade prices row */}
+                {hasPrice && (
+                  <div style={{ display: 'flex', gap: 20, marginTop: 16 }}>
+                    {[
+                      ['ENTRADA', e.entry],
+                      ['SALIDA',  e.exit],
+                      ['STOP',    e.stop],
+                    ].map(([lbl, val]) => (val as number) !== 0 ? (
+                      <div key={lbl as string}>
+                        <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 3 }}>{lbl}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: text }}>{val}</div>
+                      </div>
+                    ) : null)}
+                  </div>
+                )}
+
                 {[
-                  ['¿QUÉ PASÓ?', ref.quePaso],
-                  ['¿SEGUISTE TUS REGLAS?', ref.reglas],
-                  ['APRENDIZAJE', ref.aprendizaje],
-                ].map(([label, val]) => val ? (
-                  <div key={label} style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
+                  ['¿QUÉ PASÓ?',            ref.quePaso],
+                  ['¿SEGUISTE TUS REGLAS?',  ref.reglas],
+                  ['NOTAS',                  ref.notas],
+                  ['APRENDIZAJE',            ref.aprendizaje],
+                ].map(([lbl, val]) => val ? (
+                  <div key={lbl} style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 5 }}>{lbl}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.7, color: text, opacity: 0.8, whiteSpace: 'pre-wrap' }}>{val}</div>
                   </div>
                 ) : null)}

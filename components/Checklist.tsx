@@ -136,18 +136,16 @@ export function Checklist({ userId, date }: Props) {
 
   const q = QUESTIONS[step]
 
-  return (
-    <div style={{ color: text }}>
+  const bg = isDark ? 'hsl(231 60% 7%)' : 'hsl(0 0% 98%)'
 
-      {/* Progress bar + step dots */}
+  return (
+    <div style={{ color: text, background: bg, borderRadius: 12, padding: '4px 0' }}>
+
+      {/* Step dots */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 11, color: muted }}>{answered} / {TOTAL} respondidas</span>
           {allDone && <span style={{ fontSize: 11, color: 'oklch(72% 0.18 155)', fontWeight: 600 }}>✓ Completo</span>}
-        </div>
-        {/* Bar */}
-        <div style={{ height: 4, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
-          <div style={{ height: '100%', width: `${(answered / TOTAL) * 100}%`, background: ACCENT, borderRadius: 2, transition: 'width 0.3s ease' }} />
         </div>
         {/* Step dots */}
         <div style={{ display: 'flex', gap: 5 }}>

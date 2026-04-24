@@ -317,7 +317,7 @@ export function HabitTracker({ userId }: { userId: string }) {
             <thead>
               {/* ── Section header row ── */}
               <tr>
-                <th style={{ width: 72, minWidth: 72, background: T.surface, position: 'sticky', left: 0, top: 0, zIndex: 5, borderBottom: `1px solid ${T.border}`, height: SEC_H }} />
+                <th style={{ width: 65, minWidth: 65, background: T.surface, position: 'sticky', left: 0, top: 0, zIndex: 5, borderBottom: `1px solid ${T.border}`, height: SEC_H }} />
                 {SECTIONS.map(sec => {
                   const c = COLORS[sec]
                   const habits = sec === 'trading' ? AUTO_HABITS : customHabits.filter(h => h.section === sec)
@@ -355,7 +355,7 @@ export function HabitTracker({ userId }: { userId: string }) {
 
               {/* ── Habit column headers ── */}
               <tr>
-                <th style={{ width: 72, minWidth: 72, background: T.surface, position: 'sticky', left: 0, top: SEC_H, zIndex: 5, borderBottom: `1px solid ${T.border}`, padding: '8px 12px', fontSize: 10, color: T.muted, fontWeight: 500, letterSpacing: '0.08em', textAlign: 'left' }}>
+                <th style={{ width: 65, minWidth: 65, background: T.surface, position: 'sticky', left: 0, top: SEC_H, zIndex: 5, borderBottom: `1px solid ${T.border}`, padding: '8px 8px', fontSize: 10, color: T.muted, fontWeight: 500, letterSpacing: '0.08em', textAlign: 'left' }}>
                   DÍA
                 </th>
                 {SECTIONS.map(sec => {
@@ -363,7 +363,7 @@ export function HabitTracker({ userId }: { userId: string }) {
                   const habits = sec === 'trading' ? AUTO_HABITS : customHabits.filter(h => h.section === sec)
                   return [
                     ...habits.map(h => (
-                      <th key={h.id} style={{ width: 44, minWidth: 44, padding: '6px 2px', background: T.surface, borderBottom: `1px solid ${T.border}`, borderTop: `3px solid ${c.main}`, textAlign: 'center', verticalAlign: 'bottom', position: 'sticky', top: SEC_H, zIndex: 4 }}>
+                      <th key={h.id} style={{ width: 40, minWidth: 40, padding: '4px 2px', background: T.surface, borderBottom: `1px solid ${T.border}`, borderTop: `3px solid ${c.main}`, textAlign: 'center', verticalAlign: 'bottom', position: 'sticky', top: SEC_H, zIndex: 4 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                           {editingHabitId === h.id ? (
                             <input
@@ -372,7 +372,7 @@ export function HabitTracker({ userId }: { userId: string }) {
                               onChange={e => setEditingHabitName(e.target.value)}
                               onBlur={() => handleSaveHabitName(h.id)}
                               onKeyDown={e => { if (e.key === 'Enter') handleSaveHabitName(h.id); if (e.key === 'Escape') setEditingHabitId(null) }}
-                              style={{ width: 36, fontSize: 10, background: T.surface2, border: `1px solid ${c.main}`, color: T.text, borderRadius: 4, padding: '2px 3px', outline: 'none', textAlign: 'center' }}
+                              style={{ width: 32, fontSize: 10, background: T.surface2, border: `1px solid ${c.main}`, color: T.text, borderRadius: 4, padding: '2px 3px', outline: 'none', textAlign: 'center' }}
                             />
                           ) : (
                             <div
@@ -392,9 +392,9 @@ export function HabitTracker({ userId }: { userId: string }) {
                       </th>
                     )),
                     sec !== 'trading' && (
-                      <th key={sec + '-add'} style={{ width: 34, minWidth: 34, background: T.surface, borderBottom: `1px solid ${T.border}`, borderTop: `3px solid ${c.main}`, borderRight: `1px solid ${T.border}`, textAlign: 'center', padding: 4, position: 'sticky', top: SEC_H, zIndex: 4 }}>
+                      <th key={sec + '-add'} style={{ width: 30, minWidth: 30, background: T.surface, borderBottom: `1px solid ${T.border}`, borderTop: `3px solid ${c.main}`, borderRight: `1px solid ${T.border}`, textAlign: 'center', padding: 4, position: 'sticky', top: SEC_H, zIndex: 4 }}>
                         <button onClick={() => { setAddingTo(sec); setNewName('') }}
-                          style={{ background: 'transparent', border: `1px dashed ${c.main}`, color: c.main, borderRadius: 6, width: 22, height: 22, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', opacity: 0.7 }}>+</button>
+                          style={{ background: 'transparent', border: `1px dashed ${c.main}`, color: c.main, borderRadius: 6, width: 20, height: 20, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', opacity: 0.7 }}>+</button>
                       </th>
                     ),
                   ]
@@ -414,7 +414,7 @@ export function HabitTracker({ userId }: { userId: string }) {
 
                 return (
                   <tr key={day} style={{ background: isToday ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent' }}>
-                    <td style={{ position: 'sticky', left: 0, zIndex: 2, background: isToday ? T.surface2 : T.surface, padding: '3px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                    <td style={{ position: 'sticky', left: 0, zIndex: 2, background: isToday ? T.surface2 : T.surface, padding: '3px 8px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: 11, color: isToday ? accent : T.muted, fontWeight: isToday ? 700 : 400 }}>{DAYS_ES[dow]} </span>
                       <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? T.text : T.muted }}>{day}</span>
                     </td>
@@ -428,11 +428,11 @@ export function HabitTracker({ userId }: { userId: string }) {
                           const done = sec === 'trading' ? autoSets[h.id]?.has(dk) ?? false : !!(habitLogs[h.id]?.[dk])
                           const canClick = !disabled && sec !== 'trading'
                           return (
-                            <td key={h.id} style={{ padding: '3px 4px', borderBottom: `1px solid ${T.border}`, background: c.dim, textAlign: 'center' }}>
+                            <td key={h.id} style={{ padding: '3px 2px', borderBottom: `1px solid ${T.border}`, background: c.dim, textAlign: 'center' }}>
                               {disabled ? (
-                                <div style={{ width: 36, height: 36, borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)', margin: '0 auto' }} />
+                                <div style={{ width: 32, height: 32, borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)', margin: '0 auto' }} />
                               ) : (
-                                <div onClick={() => canClick && handleToggle(h.id, dk)} style={{ width: 36, height: 36, borderRadius: 6, margin: '0 auto', background: done ? c.main : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: isToday && !done ? `1.5px solid ${c.main}` : `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: canClick ? 'pointer' : 'default', transition: 'all 0.12s' }}>
+                                <div onClick={() => canClick && handleToggle(h.id, dk)} style={{ width: 32, height: 32, borderRadius: 6, margin: '0 auto', background: done ? c.main : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', border: isToday && !done ? `1.5px solid ${c.main}` : `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: canClick ? 'pointer' : 'default', transition: 'all 0.12s' }}>
                                   {done ? (
                                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                                       <polyline points="2,7 5.5,10.5 12,3.5" stroke={c.checkColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -446,7 +446,7 @@ export function HabitTracker({ userId }: { userId: string }) {
                           )
                         }),
                         sec !== 'trading' && (
-                          <td key={sec + '-sp'} style={{ width: 34, background: c.dim, borderBottom: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}` }} />
+                          <td key={sec + '-sp'} style={{ width: 30, background: c.dim, borderBottom: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}` }} />
                         ),
                       ]
                     })}
