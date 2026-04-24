@@ -1,176 +1,78 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { Plus, Trash2, Flame, Check } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
 import * as api from '@/lib/api'
 import { localDateStr } from '@/lib/storage'
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// ── Theme & Colors ─────────────────────────────────────────────────────────────
 
-const CELL = 42
-const DAY_COL = 76
-
-const SECTION_STYLES = {
-  trading:   { bg: '#18181b', text: '#ffffff', colBg: '#52525b' },
-  salud:     { bg: '#dcfce7', text: '#166534', colBg: '#86efac' },
-  personal:  { bg: '#dbeafe', text: '#1e40af', colBg: '#93c5fd' },
-  proyectos: { bg: '#f3e8ff', text: '#6b21a8', colBg: '#d8b4fe' },
-  educacion: { bg: '#fef3c7', text: '#92400e', colBg: '#fcd34d' },
+const T = {
+  bg:      '#070A1C',
+  surface: '#0E1428',
+  surface2:'#162038',
+  border:  'rgba(100,130,255,0.12)',
+  text:    '#E8EEFF',
+  muted:   '#6878B0',
 }
 
-const DOW: Record<number, string> = {
-  0: 'Dom', 1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb',
+const COLORS: Record<string, { main: string; dim: string; checkColor: string }> = {
+  trading:   { main: 'oklch(68% 0.19 42)',  dim: 'oklch(68% 0.19 42 / 0.14)',  checkColor: '#0A0A0C' },
+  salud:     { main: 'oklch(72% 0.18 155)', dim: 'oklch(72% 0.18 155 / 0.14)', checkColor: '#0A0A0C' },
+  personal:  { main: 'oklch(70% 0.17 240)', dim: 'oklch(70% 0.17 240 / 0.14)', checkColor: '#0A0A0C' },
+  proyectos: { main: 'oklch(68% 0.18 290)', dim: 'oklch(68% 0.18 290 / 0.14)', checkColor: '#ffffff' },
+  educacion: { main: 'oklch(78% 0.17 88)',  dim: 'oklch(78% 0.17 88 / 0.14)',  checkColor: '#0A0A0C' },
 }
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d)
-  r.setDate(r.getDate() + n)
-  return r
-}
+const DAYS_ES: Record<number, string> = { 0: 'Dom', 1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb' }
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-function isWeekend(d: Date): boolean {
-  return d.getDay() === 0 || d.getDay() === 6
-}
-
-function getMonthDays(year: number, month: number): string[] {
-  const days: string[] = []
-  const d = new Date(year, month, 1)
-  while (d.getMonth() === month) {
-    days.push(localDateStr(d))
-    d.setDate(d.getDate() + 1)
-  }
-  return days
-}
-
-function computeStreak(completedSet: Set<string>, tradingOnly: boolean): number {
-  const todayStr = localDateStr(new Date())
-  let d = new Date()
-  if (!completedSet.has(todayStr)) d = addDays(d, -1)
-  let streak = 0
-  while (streak < 365) {
-    if (tradingOnly && isWeekend(d)) { d = addDays(d, -1); continue }
-    if (!completedSet.has(localDateStr(d))) break
-    streak++
-    d = addDays(d, -1)
-  }
-  return streak
-}
-
-function sinceDate(): string {
-  return localDateStr(addDays(new Date(), -90))
-}
+function pad(n: number) { return String(n).padStart(2, '0') }
+function dkey(y: number, m: number, d: number) { return `${y}-${pad(m + 1)}-${pad(d)}` }
+function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate() }
+function isWeekend(dow: number) { return dow === 0 || dow === 6 }
+function sinceDate() { const d = new Date(); d.setDate(d.getDate() - 90); return localDateStr(d) }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type Section = 'trading' | 'salud' | 'personal' | 'proyectos' | 'educacion'
 
-type Habit = {
-  id: string
-  name: string
-  section: Section
-  type: 'auto' | 'custom'
-}
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'trading',   label: 'TRADING' },
+  { id: 'salud',     label: 'SALUD' },
+  { id: 'personal',  label: 'PERSONAL' },
+  { id: 'proyectos', label: 'PROYECTOS CREATIVOS' },
+  { id: 'educacion', label: 'EDUCACIÓN' },
+]
 
-type DisplayHabit = Habit | { id: string; name: string; section: Section; type: 'placeholder' }
+const AUTO_HABITS = [
+  { id: 'analysis', name: 'Pre-Mercado' },
+  { id: 'prep',     name: 'Trading Prep' },
+  { id: 'rules',    name: 'Reglas' },
+  { id: 'journal',  name: 'Diario' },
+]
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function HabitTracker({ userId }: { userId: string }) {
-  const [monthYear, setMonthYear] = useState(() => {
-    const now = new Date()
-    return { year: now.getFullYear(), month: now.getMonth() }
-  })
-  const [analysisDates, setAnalysisDates] = useState<string[]>([])
-  const [prepDates, setPrepDates]         = useState<string[]>([])
-  const [rulesDates, setRulesDates]       = useState<string[]>([])
-  const [journalDates, setJournalDates]   = useState<string[]>([])
-  const [customHabits, setCustomHabits]   = useState<api.CustomHabit[]>([])
-  const [habitLogs, setHabitLogs]         = useState<Record<string, Record<string, boolean>>>({})
-  const [addingTo, setAddingTo]           = useState<Section | null>(null)
-  const [newName, setNewName]             = useState('')
-  const [adding, setAdding]               = useState(false)
-  const [error, setError]                 = useState<string | null>(null)
-  const formRef                           = useRef<HTMLDivElement>(null)
+  const now = new Date()
+  const [offset, setOffset]           = useState(0)
+  const [analysisDates, setAnalysis]  = useState<string[]>([])
+  const [prepDates, setPrep]          = useState<string[]>([])
+  const [rulesDates, setRules]        = useState<string[]>([])
+  const [journalDates, setJournal]    = useState<string[]>([])
+  const [customHabits, setCustom]     = useState<api.CustomHabit[]>([])
+  const [habitLogs, setHabitLogs]     = useState<Record<string, Record<string, boolean>>>({})
+  const [addingTo, setAddingTo]       = useState<Section | null>(null)
+  const [newName, setNewName]         = useState('')
+  const [error, setError]             = useState<string | null>(null)
 
-  useEffect(() => {
-    if (addingTo) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [addingTo])
-
-  const loadData = useCallback(async () => {
-    const since = sinceDate()
-    const [autoData, habits] = await Promise.all([
-      api.getAutoHabitData(userId, since),
-      api.getCustomHabits(userId),
-    ])
-    setAnalysisDates(autoData.analysisDates)
-    setPrepDates(autoData.prepDates)
-    setRulesDates(autoData.rulesDates)
-    setJournalDates(autoData.journalDates)
-    setCustomHabits(habits)
-    if (habits.length > 0) setHabitLogs(await api.getAllHabitLogs(userId, since))
-  }, [userId])
-
-  useEffect(() => { loadData() }, [loadData])
-
-  async function handleAddHabit() {
-    if (!newName.trim() || !addingTo) return
-    setAdding(true)
-    setError(null)
-    try {
-      const habit = await api.addCustomHabit(userId, newName.trim(), addingTo)
-      setCustomHabits(prev => [...prev, habit])
-      setHabitLogs(prev => ({ ...prev, [habit.id]: {} }))
-      setNewName('')
-      setAddingTo(null)
-    } catch (e) {
-      setError(`Error al agregar hábito: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setAdding(false)
-    }
-  }
-
-  async function handleDeleteHabit(id: string) {
-    try {
-      await api.deleteCustomHabit(id)
-      setCustomHabits(prev => prev.filter(h => h.id !== id))
-      setHabitLogs(prev => { const next = { ...prev }; delete next[id]; return next })
-    } catch (e) {
-      setError(`Error al eliminar hábito: ${e instanceof Error ? e.message : String(e)}`)
-    }
-  }
-
-  async function handleMark(habitId: string, date: string, value: boolean | null) {
-    setHabitLogs(prev => {
-      const updated = { ...prev, [habitId]: { ...(prev[habitId] ?? {}) } }
-      if (value === null) delete updated[habitId][date]
-      else updated[habitId][date] = value
-      return updated
-    })
-    try {
-      await api.setHabitLog(userId, habitId, date, value)
-    } catch (e) {
-      setError(`Error al guardar: ${e instanceof Error ? e.message : String(e)}`)
-      await loadData()
-    }
-  }
-
-  // ── Build habit list ─────────────────────────────────────────────────────────
-
-  const tradingHabits: Habit[] = [
-    { id: 'analysis', name: 'Pre-Mercado',  section: 'trading', type: 'auto' },
-    { id: 'prep',     name: 'Trading Prep', section: 'trading', type: 'auto' },
-    { id: 'rules',    name: 'Reglas',       section: 'trading', type: 'auto' },
-    { id: 'journal',  name: 'Diario',       section: 'trading', type: 'auto' },
-  ]
-
-  const saludHabits:     Habit[] = customHabits.filter(h => h.section === 'salud').map(h => ({ ...h, section: 'salud' as Section, type: 'custom' as const }))
-  const personalHabits:  Habit[] = customHabits.filter(h => h.section === 'personal').map(h => ({ ...h, section: 'personal' as Section, type: 'custom' as const }))
-  const proyectosHabits: Habit[] = customHabits.filter(h => h.section === 'proyectos').map(h => ({ ...h, section: 'proyectos' as Section, type: 'custom' as const }))
-  const educacionHabits: Habit[] = customHabits.filter(h => h.section === 'educacion').map(h => ({ ...h, section: 'educacion' as Section, type: 'custom' as const }))
-
-  // ── Completed sets ───────────────────────────────────────────────────────────
+  const base  = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+  const year  = base.getFullYear()
+  const month = base.getMonth()
+  const days  = daysInMonth(year, month)
+  const isCurMonth = now.getFullYear() === year && now.getMonth() === month
 
   const autoSets: Record<string, Set<string>> = {
     analysis: new Set(analysisDates),
@@ -179,400 +81,306 @@ export function HabitTracker({ userId }: { userId: string }) {
     journal:  new Set(journalDates),
   }
 
-  function getCompletedSet(habit: Habit): Set<string> {
-    if (habit.type === 'auto') return autoSets[habit.id] ?? new Set()
-    return new Set(Object.entries(habitLogs[habit.id] ?? {}).filter(([, v]) => v).map(([k]) => k))
-  }
+  const loadData = useCallback(async () => {
+    const since = sinceDate()
+    const [autoData, habits] = await Promise.all([
+      api.getAutoHabitData(userId, since),
+      api.getCustomHabits(userId),
+    ])
+    setAnalysis(autoData.analysisDates)
+    setPrep(autoData.prepDates)
+    setRules(autoData.rulesDates)
+    setJournal(autoData.journalDates)
+    setCustom(habits)
+    if (habits.length > 0) setHabitLogs(await api.getAllHabitLogs(userId, since))
+  }, [userId])
 
-  // ── Layout ───────────────────────────────────────────────────────────────────
+  useEffect(() => { loadData() }, [loadData])
 
-  const MIN_COLS       = 4
-  const MIN_COLS_SMALL = 3
-
-  const saludCols     = Math.max(MIN_COLS, saludHabits.length)
-  const personalCols  = Math.max(MIN_COLS, personalHabits.length)
-  const proyectosCols = Math.max(MIN_COLS_SMALL, proyectosHabits.length)
-  const educacionCols = Math.max(MIN_COLS_SMALL, educacionHabits.length)
-
-  const totalCols  = 4 + saludCols + personalCols + proyectosCols + educacionCols
-  const totalWidth = DAY_COL + totalCols * CELL
-
-  function padSection(habits: Habit[], section: Section, min: number): DisplayHabit[] {
-    const result: DisplayHabit[] = [...habits]
-    for (let i = habits.length; i < min; i++) {
-      result.push({ id: `ph-${section}-${i}`, name: '', section, type: 'placeholder' })
-    }
-    return result
-  }
-
-  const displaySalud     = padSection(saludHabits,     'salud',     MIN_COLS)
-  const displayPersonal  = padSection(personalHabits,  'personal',  MIN_COLS)
-  const displayProyectos = padSection(proyectosHabits, 'proyectos', MIN_COLS_SMALL)
-  const displayEducacion = padSection(educacionHabits, 'educacion', MIN_COLS_SMALL)
-
-  const displayHabits: DisplayHabit[] = [
-    ...tradingHabits,
-    ...displaySalud,
-    ...displayPersonal,
-    ...displayProyectos,
-    ...displayEducacion,
-  ]
-
-  // Section border positions (right border of last column in each section)
-  const borderAfterTrading   = 3
-  const borderAfterSalud     = 3 + saludCols
-  const borderAfterPersonal  = 3 + saludCols + personalCols
-  const borderAfterProyectos = 3 + saludCols + personalCols + proyectosCols
-
-  function isSectionBorder(i: number): boolean {
-    return i === borderAfterTrading || i === borderAfterSalud || i === borderAfterPersonal || i === borderAfterProyectos
-  }
-
-  const days = getMonthDays(monthYear.year, monthYear.month)
-  const today = localDateStr(new Date())
-
-  const monthLabel = new Date(monthYear.year, monthYear.month, 1)
-    .toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-
-  function prevMonth() {
-    setMonthYear(({ year, month }) => month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 })
-  }
-  function nextMonth() {
-    const now = new Date()
-    setMonthYear(prev => {
-      if (prev.year === now.getFullYear() && prev.month === now.getMonth()) return prev
-      return prev.month === 11 ? { year: prev.year + 1, month: 0 } : { year: prev.year, month: prev.month + 1 }
+  async function handleToggle(habitId: string, date: string) {
+    const current = habitLogs[habitId]?.[date]
+    const next = current ? null : true
+    setHabitLogs(prev => {
+      const updated = { ...prev, [habitId]: { ...(prev[habitId] ?? {}) } }
+      if (next === null) delete updated[habitId][date]
+      else updated[habitId][date] = next
+      return updated
     })
+    try {
+      await api.setHabitLog(userId, habitId, date, next)
+    } catch (e) {
+      setError(`Error al guardar: ${e instanceof Error ? e.message : String(e)}`)
+      await loadData()
+    }
   }
 
-  function sectionLabel(s: Section): string {
-    const map: Record<Section, string> = {
-      trading: 'Trading', salud: 'Salud', personal: 'Personal',
-      proyectos: 'Proyectos Creativos', educacion: 'Educación',
+  async function handleAddHabit() {
+    if (!newName.trim() || !addingTo) return
+    try {
+      const habit = await api.addCustomHabit(userId, newName.trim(), addingTo)
+      setCustom(prev => [...prev, habit])
+      setHabitLogs(prev => ({ ...prev, [habit.id]: {} }))
+      setNewName('')
+      setAddingTo(null)
+    } catch (e) {
+      setError(`Error al agregar: ${e instanceof Error ? e.message : String(e)}`)
     }
-    return map[s]
+  }
+
+  async function handleDeleteHabit(id: string) {
+    await api.deleteCustomHabit(id)
+    setCustom(prev => prev.filter(h => h.id !== id))
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────────────────
+
+  const allCustom = customHabits
+  const maxDay = isCurMonth ? now.getDate() : days
+  let tot = 0, dn = 0, curStr = 0, bestStr = 0, cur = 0
+
+  for (let d = 1; d <= maxDay; d++) {
+    const dk = dkey(year, month, d)
+    const dow = new Date(year, month, d).getDay()
+    const weekend = isWeekend(dow)
+
+    AUTO_HABITS.forEach(h => {
+      if (weekend) return
+      tot++
+      if (autoSets[h.id]?.has(dk)) dn++
+    })
+    allCustom.forEach(h => {
+      tot++
+      if (habitLogs[h.id]?.[dk]) dn++
+    })
+
+    const anyDone =
+      (!weekend && AUTO_HABITS.some(h => autoSets[h.id]?.has(dk))) ||
+      allCustom.some(h => habitLogs[h.id]?.[dk])
+
+    if (anyDone) { cur++; bestStr = Math.max(bestStr, cur) } else cur = 0
+  }
+  if (isCurMonth) curStr = cur
+  const rate = tot > 0 ? Math.round((dn / tot) * 100) : 0
+
+  // ── Streak per habit ─────────────────────────────────────────────────────────
+
+  function habitStreak(habitId: string, isAuto: boolean, isTrading: boolean): number {
+    let s = 0
+    const lim = isCurMonth ? now.getDate() : days
+    for (let i = lim; i >= 1; i--) {
+      const dow = new Date(year, month, i).getDay()
+      if (isTrading && isWeekend(dow)) continue
+      const dk = dkey(year, month, i)
+      const done = isAuto ? autoSets[habitId]?.has(dk) : habitLogs[habitId]?.[dk]
+      if (done) s++; else break
+    }
+    return s
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-8">
+  const accent = 'oklch(68% 0.19 42)'
 
-      {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-primary mb-1">Disciplina</p>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground capitalize">{monthLabel}</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Consistencia es tu ventaja</p>
+  return (
+    <div style={{ background: T.bg, borderRadius: 16, padding: '28px 24px', color: T.text, fontFamily: 'inherit' }}>
+
+      {/* Error */}
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: '#fca5a5' }}>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-400 transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
-          </button>
-          <span className="text-sm font-medium text-zinc-600 capitalize w-40 text-center">{monthLabel}</span>
-          <button onClick={nextMonth} className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-400 transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-          </button>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', color: T.muted, marginBottom: 4 }}>DISCIPLINA</div>
+          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em', color: T.text }}>
+            {MONTHS_ES[month]} de {year}
+          </h1>
+          <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>Consistencia es tu ventaja</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setOffset(o => o - 1)}
+            style={{ width: 34, height: 34, borderRadius: 8, background: T.surface2, border: `1px solid ${T.border}`, color: T.text, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+          <button onClick={() => !isCurMonth && setOffset(o => o + 1)}
+            style={{ width: 34, height: 34, borderRadius: 8, background: T.surface2, border: `1px solid ${T.border}`, color: isCurMonth ? T.muted : T.text, cursor: isCurMonth ? 'default' : 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
         </div>
       </div>
 
-      {/* Error banner */}
-      {error && (
-        <div className="flex items-center justify-between gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-          <p className="text-sm text-red-700">{error}</p>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xs font-medium">Cerrar</button>
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
+        {[
+          ['TASA MENSUAL', `${rate}%`, `${dn}/${tot} hábitos`],
+          ['RACHA ACTUAL', `${curStr}d`, curStr > 0 ? '🔥 en racha' : 'sin racha hoy'],
+          ['MEJOR RACHA',  `${bestStr}d`, 'este mes'],
+        ].map(([label, val, sub]) => (
+          <div key={label} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 18px', minWidth: 120 }}>
+            <div style={{ fontSize: 10, color: T.muted, letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1, color: T.text }}>{val}</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add habit form */}
+      {addingTo && (
+        <div style={{ background: T.surface2, border: `1px solid ${COLORS[addingTo].main}40`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: COLORS[addingTo].main, fontWeight: 700, letterSpacing: '0.08em', marginRight: 4 }}>
+            {SECTIONS.find(s => s.id === addingTo)?.label}
+          </span>
+          <input
+            autoFocus
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); if (e.key === 'Escape') { setAddingTo(null); setNewName('') } }}
+            placeholder="Nombre del hábito..."
+            style={{ flex: 1, background: T.bg, border: `1px solid ${T.border}`, color: T.text, borderRadius: 6, padding: '6px 10px', fontSize: 13, outline: 'none' }}
+          />
+          <button onClick={handleAddHabit} disabled={!newName.trim()}
+            style={{ background: COLORS[addingTo].main, color: '#0a0a0c', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: newName.trim() ? 1 : 0.4 }}>
+            Agregar
+          </button>
+          <button onClick={() => { setAddingTo(null); setNewName('') }}
+            style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
       )}
 
       {/* Grid */}
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-        <div style={{ minWidth: totalWidth }}>
-
-          {/* ── Section headers ── */}
-          <div className="flex" style={{ borderBottom: '2px solid #e4e4e7' }}>
-            <div style={{ width: DAY_COL, minWidth: DAY_COL }} className="border-r-2 border-zinc-200" />
-
-            {/* Trading */}
-            <div style={{ width: 4 * CELL, backgroundColor: SECTION_STYLES.trading.bg }}
-              className="flex items-center justify-center py-2 border-r-2 border-zinc-300">
-              <span style={{ color: SECTION_STYLES.trading.text }} className="text-xs font-bold uppercase tracking-widest">Trading</span>
-            </div>
-
-            {/* Salud */}
-            <button
-              onClick={() => { setAddingTo('salud'); setNewName('') }}
-              style={{ width: saludCols * CELL, backgroundColor: SECTION_STYLES.salud.bg }}
-              className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
-            >
-              <span style={{ color: SECTION_STYLES.salud.text }} className="text-xs font-bold uppercase tracking-widest">Salud</span>
-              <Plus style={{ color: SECTION_STYLES.salud.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </button>
-
-            {/* Personal */}
-            <button
-              onClick={() => { setAddingTo('personal'); setNewName('') }}
-              style={{ width: personalCols * CELL, backgroundColor: SECTION_STYLES.personal.bg }}
-              className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
-            >
-              <span style={{ color: SECTION_STYLES.personal.text }} className="text-xs font-bold uppercase tracking-widest">Personal</span>
-              <Plus style={{ color: SECTION_STYLES.personal.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </button>
-
-            {/* Proyectos Creativos */}
-            <button
-              onClick={() => { setAddingTo('proyectos'); setNewName('') }}
-              style={{ width: proyectosCols * CELL, backgroundColor: SECTION_STYLES.proyectos.bg }}
-              className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
-            >
-              <span style={{ color: SECTION_STYLES.proyectos.text }} className="text-xs font-bold uppercase tracking-widest text-center leading-tight">Proyectos<br/>Creativos</span>
-              <Plus style={{ color: SECTION_STYLES.proyectos.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </button>
-
-            {/* Educación */}
-            <button
-              onClick={() => { setAddingTo('educacion'); setNewName('') }}
-              style={{ width: educacionCols * CELL, backgroundColor: SECTION_STYLES.educacion.bg }}
-              className="flex items-center justify-center gap-2 py-2 hover:brightness-95 transition-all group"
-            >
-              <span style={{ color: SECTION_STYLES.educacion.text }} className="text-xs font-bold uppercase tracking-widest">Educación</span>
-              <Plus style={{ color: SECTION_STYLES.educacion.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </button>
-          </div>
-
-          {/* ── Habit column headers (rotated names) ── */}
-          <div className="flex border-b-2 border-zinc-200">
-            <div style={{ width: DAY_COL, minWidth: DAY_COL }} className="border-r-2 border-zinc-200" />
-
-            {displayHabits.map((habit, i) => {
-              const sStyle = SECTION_STYLES[habit.section]
-              const isPlaceholder = habit.type === 'placeholder'
-              const realHabit = isPlaceholder ? null : (habit as Habit)
-              const streak = realHabit ? computeStreak(getCompletedSet(realHabit), realHabit.section === 'trading') : 0
-              const hasBorder = isSectionBorder(i)
-
-              return (
-                <div key={habit.id}
-                  style={{ width: CELL, minWidth: CELL, borderRight: hasBorder ? '2px solid #d4d4d8' : '1px solid #f4f4f5' }}
-                  className="flex flex-col items-center">
-
-                  {/* Color bar */}
-                  <div style={{ height: 10, width: '100%', backgroundColor: sStyle.colBg }} />
-
-                  {/* Vertical name */}
-                  <div
-                    style={{ height: 130, width: CELL, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isPlaceholder ? 'pointer' : 'default' }}
-                    onClick={() => isPlaceholder && (setAddingTo(habit.section as Section), setNewName(''))}
-                  >
-                    {isPlaceholder ? (
-                      <span className="text-zinc-300 hover:text-zinc-400 text-lg transition-colors">+</span>
-                    ) : (
-                      <span
-                        title={habit.name}
-                        style={{
-                          writingMode: 'vertical-rl',
-                          transform: 'rotate(180deg)',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: '#18181b',
-                          letterSpacing: '0.02em',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          maxHeight: 124,
-                        }}
-                      >
-                        {habit.name}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Streak + delete */}
-                  <div className="flex flex-col items-center gap-0.5 pb-2">
-                    {streak > 0 && (
-                      <span className="flex items-center gap-0.5 text-xs font-semibold text-zinc-500">
-                        <Flame className="w-2.5 h-2.5 text-orange-500" />{streak}
-                      </span>
-                    )}
-                    {habit.type === 'custom' && (
-                      <button onClick={() => handleDeleteHabit(habit.id)} className="text-zinc-200 hover:text-red-400 transition-colors">
-                        <Trash2 className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* ── Day rows ── */}
-          {days.map(date => {
-            const d = new Date(date + 'T12:00:00')
-            const dow = d.getDay()
-            const dayNum = d.getDate()
-            const isToday  = date === today
-            const isFuture = date > today
-            const weekend  = isWeekend(d)
-
-            return (
-              <div key={date} className="flex border-b border-zinc-50"
-                style={{ height: CELL, backgroundColor: isToday ? '#fefce8' : weekend ? '#fafafa' : 'transparent' }}>
-
-                {/* Day label */}
-                <div style={{ width: DAY_COL, minWidth: DAY_COL }}
-                  className="flex items-center gap-1.5 px-2 border-r-2 border-zinc-200">
-                  <span className="text-xs w-7 text-zinc-400">{DOW[dow]}</span>
-                  <span className={`text-xs font-bold tabular-nums ${
-                    isToday ? 'bg-zinc-900 text-white px-1.5 py-0.5 rounded' : weekend ? 'text-zinc-400' : 'text-zinc-600'
-                  }`}>{dayNum}</span>
-                </div>
-
-                {/* Habit cells */}
-                {displayHabits.map((habit, i) => {
-                  const hasBorder  = isSectionBorder(i)
-                  const isPlaceholder = habit.type === 'placeholder'
-                  const noTradingWeekend = habit.type === 'auto' && weekend
-
-                  let done: boolean | undefined
-                  let canMark = false
-
-                  if (isPlaceholder || noTradingWeekend) {
-                    done = undefined
-                  } else if (habit.type === 'auto') {
-                    const set = autoSets[habit.id]
-                    done = set?.has(date) ? true : (!isFuture ? false : undefined)
-                  } else {
-                    done = habitLogs[habit.id]?.[date]
-                    canMark = !isFuture
-                  }
-
-                  const borderStyle = hasBorder ? '2px solid #d4d4d8' : '1px solid #f4f4f5'
-
-                  // Auto habits: full-width cell, read-only
-                  if (habit.type === 'auto') {
-                    return (
-                      <div
-                        key={habit.id}
-                        style={{
-                          width: CELL, minWidth: CELL, height: CELL,
-                          borderRight: borderStyle,
-                          backgroundColor: done === true ? '#f97316' : done === false && !isFuture ? '#09090b' : 'transparent',
-                        }}
-                        className="flex items-center justify-center flex-shrink-0"
-                      >
-                        {done === true && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                        {done === false && !isFuture && (
-                          <span style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>×</span>
-                        )}
-                        {done === undefined && !isFuture && (
-                          <span style={{ fontSize: 7, color: '#d4d4d8' }}>●</span>
-                        )}
-                      </div>
-                    )
-                  }
-
-                  // Placeholder: empty, non-interactive
-                  if (isPlaceholder) {
-                    return (
-                      <div
-                        key={habit.id}
-                        style={{ width: CELL, minWidth: CELL, height: CELL, borderRight: borderStyle, flexShrink: 0 }}
-                      />
-                    )
-                  }
-
-                  // Custom habits: split-cell — left half = ✓ done, right half = × not done
-                  // Always show faint icons so user knows which side does what
+      <div style={{ background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
+            <thead>
+              {/* Section header row */}
+              <tr>
+                <th style={{ width: 72, minWidth: 72, background: T.surface, position: 'sticky', left: 0, zIndex: 3, borderBottom: `1px solid ${T.border}` }} />
+                {SECTIONS.map(sec => {
+                  const c = COLORS[sec.id]
+                  const habits = sec.id === 'trading'
+                    ? AUTO_HABITS
+                    : customHabits.filter(h => h.section === sec.id)
+                  const colSpan = habits.length + 1
                   return (
-                    <div
-                      key={habit.id}
-                      style={{ width: CELL, minWidth: CELL, height: CELL, borderRight: borderStyle, display: 'flex', flexShrink: 0 }}
-                    >
-                      {/* Left half: ✓ done */}
-                      <button
-                        onClick={() => canMark && handleMark(habit.id, date, done === true ? null : true)}
-                        disabled={!canMark}
-                        style={{
-                          width: '50%', height: '100%',
-                          backgroundColor: done === true ? '#f97316' : 'transparent',
-                          borderRight: '1px solid #f4f4f5',
-                        }}
-                        className={`flex items-center justify-center transition-colors ${canMark && done !== true ? 'hover:bg-orange-50' : ''}`}
-                      >
-                        <Check style={{
-                          width: 9, height: 9, strokeWidth: 3,
-                          color: done === true ? '#ffffff' : !isFuture ? '#d4d4d8' : 'transparent',
-                        }} />
-                      </button>
-
-                      {/* Right half: × not done */}
-                      <button
-                        onClick={() => canMark && handleMark(habit.id, date, done === false ? null : false)}
-                        disabled={!canMark}
-                        style={{
-                          width: '50%', height: '100%',
-                          backgroundColor: done === false && !isFuture ? '#09090b' : 'transparent',
-                        }}
-                        className={`flex items-center justify-center transition-colors ${canMark && done !== false ? 'hover:bg-zinc-100' : ''}`}
-                      >
-                        <span style={{
-                          fontSize: 11, fontWeight: 900, lineHeight: 1,
-                          color: done === false && !isFuture ? '#ffffff' : !isFuture ? '#d4d4d8' : 'transparent',
-                        }}>×</span>
-                      </button>
-                    </div>
+                    <th key={sec.id} colSpan={colSpan}
+                      style={{ padding: '10px 12px', background: c.dim, borderBottom: `2px solid ${c.main}`, textAlign: 'left', borderRight: `1px solid ${T.border}` }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: c.main }}>{sec.label}</span>
+                    </th>
                   )
                 })}
-              </div>
-            )
-          })}
+              </tr>
 
+              {/* Habit column headers */}
+              <tr>
+                <th style={{ width: 72, minWidth: 72, background: T.surface, position: 'sticky', left: 0, zIndex: 3, borderBottom: `1px solid ${T.border}`, padding: '8px 12px', fontSize: 10, color: T.muted, fontWeight: 500, letterSpacing: '0.08em', textAlign: 'left' }}>
+                  DÍA
+                </th>
+                {SECTIONS.map(sec => {
+                  const c = COLORS[sec.id]
+                  const habits = sec.id === 'trading'
+                    ? AUTO_HABITS
+                    : customHabits.filter(h => h.section === sec.id)
+                  return [
+                    ...habits.map(h => {
+                      const s = habitStreak(h.id, sec.id === 'trading', sec.id === 'trading')
+                      return (
+                        <th key={h.id} style={{ width: 44, minWidth: 44, padding: '6px 2px', background: c.dim, borderBottom: `1px solid ${T.border}`, textAlign: 'center', verticalAlign: 'bottom' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            {s > 0 && <div style={{ fontSize: 9, color: c.main }}>🔥{s}</div>}
+                            <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 10, fontWeight: 600, color: T.text, opacity: 0.75, whiteSpace: 'nowrap', maxHeight: 90, overflow: 'hidden' }}>{h.name}</div>
+                            {sec.id !== 'trading' && (
+                              <button onClick={() => handleDeleteHabit(h.id)}
+                                style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', fontSize: 12, opacity: 0.4, lineHeight: 1, padding: '1px 2px' }}
+                                title="Eliminar">×</button>
+                            )}
+                          </div>
+                        </th>
+                      )
+                    }),
+                    // "+" add button column
+                    <th key={sec.id + '-add'} style={{ width: 34, minWidth: 34, background: c.dim, borderBottom: `1px solid ${T.border}`, textAlign: 'center', borderRight: `1px solid ${T.border}`, padding: 4 }}>
+                      {sec.id !== 'trading' && (
+                        <button onClick={() => { setAddingTo(sec.id); setNewName('') }}
+                          style={{ background: 'transparent', border: `1px dashed ${c.main}`, color: c.main, borderRadius: 6, width: 22, height: 22, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', opacity: 0.7 }}>+</button>
+                      )}
+                    </th>,
+                  ]
+                })}
+              </tr>
+            </thead>
+
+            <tbody>
+              {Array.from({ length: days }, (_, i) => {
+                const day = i + 1
+                const d = new Date(year, month, day)
+                const dow = d.getDay()
+                const weekend = isWeekend(dow)
+                const isToday = isCurMonth && now.getDate() === day
+                const isFuture = isCurMonth && day > now.getDate()
+                const dk = dkey(year, month, day)
+
+                return (
+                  <tr key={day} style={{ background: isToday ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
+                    {/* Day label — sticky */}
+                    <td style={{ position: 'sticky', left: 0, zIndex: 2, background: isToday ? T.surface2 : T.surface, padding: '3px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, color: isToday ? accent : T.muted, fontWeight: isToday ? 700 : 400 }}>{DAYS_ES[dow]} </span>
+                      <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? T.text : T.muted }}>{day}</span>
+                    </td>
+
+                    {SECTIONS.map(sec => {
+                      const c = COLORS[sec.id]
+                      const habits = sec.id === 'trading'
+                        ? AUTO_HABITS
+                        : customHabits.filter(h => h.section === sec.id)
+
+                      return [
+                        ...habits.map(h => {
+                          const disabled = isFuture || (sec.id === 'trading' && weekend)
+                          const done = sec.id === 'trading'
+                            ? autoSets[h.id]?.has(dk) ?? false
+                            : !!(habitLogs[h.id]?.[dk])
+                          const canClick = !disabled && sec.id !== 'trading'
+                          const isPast = !isFuture
+
+                          return (
+                            <td key={h.id} style={{ padding: '3px 4px', borderBottom: `1px solid ${T.border}`, background: c.dim, textAlign: 'center' }}>
+                              {disabled ? (
+                                <div style={{ width: 36, height: 36, borderRadius: 6, background: 'rgba(255,255,255,0.02)', margin: '0 auto' }} />
+                              ) : (
+                                <div
+                                  onClick={() => canClick && handleToggle(h.id, dk)}
+                                  style={{
+                                    width: 36, height: 36, borderRadius: 6, margin: '0 auto',
+                                    background: done ? c.main : 'rgba(255,255,255,0.04)',
+                                    border: isToday && !done ? `1.5px solid ${c.main}` : `1px solid ${T.border}`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: canClick ? 'pointer' : 'default',
+                                    transition: 'all 0.12s',
+                                  }}
+                                >
+                                  {done ? (
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                      <polyline points="2,7 5.5,10.5 12,3.5" stroke={c.checkColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                  ) : isPast ? (
+                                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+                                  ) : null}
+                                </div>
+                              )}
+                            </td>
+                          )
+                        }),
+                        // Spacer column
+                        <td key={sec.id + '-sp'} style={{ width: 34, background: c.dim, borderBottom: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}` }} />,
+                      ]
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      {/* Add habit buttons */}
-      {!addingTo && (
-        <div className="flex flex-wrap gap-3">
-          {(['salud', 'personal', 'proyectos', 'educacion'] as const).map(section => (
-            <button
-              key={section}
-              onClick={() => { setAddingTo(section); setNewName('') }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors"
-              style={{ borderColor: SECTION_STYLES[section].bg, backgroundColor: SECTION_STYLES[section].bg, color: SECTION_STYLES[section].text }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Agregar en {sectionLabel(section)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Add habit form */}
-      {addingTo && addingTo !== 'trading' && (
-        <div ref={formRef} className="rounded-lg border-2 p-4 space-y-3"
-          style={{ borderColor: SECTION_STYLES[addingTo].bg, backgroundColor: `${SECTION_STYLES[addingTo].bg}40` }}>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: SECTION_STYLES[addingTo].text }}>
-            Nuevo hábito en {sectionLabel(addingTo)}
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); if (e.key === 'Escape') setAddingTo(null) }}
-              placeholder="Nombre del hábito..."
-              autoFocus
-              className="flex-1 h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300"
-            />
-            <button onClick={handleAddHabit} disabled={!newName.trim() || adding}
-              className="px-5 py-2 bg-zinc-900 text-white text-sm font-semibold rounded-lg disabled:opacity-40 hover:bg-black transition-colors">
-              {adding ? '...' : 'Agregar'}
-            </button>
-            <button onClick={() => { setAddingTo(null); setNewName('') }}
-              className="px-4 py-2 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
