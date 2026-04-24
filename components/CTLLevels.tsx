@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import type { Instrument, Level, LevelType } from '@/lib/storage'
 import { LEVEL_TYPE_OPTIONS } from '@/lib/storage'
 
-const selectClass = "w-full h-9 rounded-lg border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+const selectClass = "w-full h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
 import * as api from '@/lib/api'
 import { isAdmin } from '@/lib/config'
 
@@ -127,20 +127,20 @@ export function CTLLevels({ date, userEmail, readOnly = false, hideHeader = fals
       )}
 
       {isAdminUser && (
-        <form onSubmit={handleAdd} className="rounded-lg border border-zinc-200 bg-zinc-50 p-5 space-y-4">
+        <form onSubmit={handleAdd} className="rounded-lg border bg-muted p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
-              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Instrumento</p>
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Instrumento</p>
               <select value={instrument} onChange={(e) => setInstrument(e.target.value as Instrument)} className={selectClass}>
                 {INSTRUMENTS.map((i) => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Precio</p>
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Precio</p>
               <Input type="number" step="0.25" placeholder="5920.00" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Tipo</p>
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Tipo</p>
               <select value={type} onChange={(e) => setType(e.target.value as LevelType)} className={selectClass}>
                 {LEVEL_TYPE_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
@@ -154,17 +154,17 @@ export function CTLLevels({ date, userEmail, readOnly = false, hideHeader = fals
             </div>
           </div>
           <div className="space-y-1.5">
-            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Notas (opcional)</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Notas (opcional)</p>
             <Input placeholder="Ej. Máximo del día anterior, mirando reacción en este nivel" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </form>
       )}
 
       {loading ? (
-        <p className="text-sm text-zinc-400 py-4 text-center">Cargando...</p>
+        <p className="text-sm text-muted-foreground py-4 text-center">Cargando...</p>
       ) : levels.length === 0 ? (
         <div className="rounded-lg border bg-card p-8 text-center">
-          <p className="text-sm text-zinc-400">Aún no se han publicado niveles para hoy.</p>
+          <p className="text-sm text-muted-foreground">Aún no se han publicado niveles para hoy.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -186,17 +186,17 @@ export function CTLLevels({ date, userEmail, readOnly = false, hideHeader = fals
                           <div className="space-y-3">
                             <div className="grid grid-cols-3 gap-2">
                               <div className="space-y-1">
-                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Instrumento</p>
+                                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Instrumento</p>
                                 <select value={editState.instrument} onChange={(e) => setEditState((s) => ({ ...s, instrument: e.target.value as Instrument }))} className={selectClass}>
                                   {INSTRUMENTS.map((i) => <option key={i} value={i}>{i}</option>)}
                                 </select>
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Precio</p>
+                                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Precio</p>
                                 <Input type="number" step="0.25" value={editState.price} onChange={(e) => setEditState((s) => ({ ...s, price: e.target.value }))} />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Tipo</p>
+                                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Tipo</p>
                                 <select value={editState.type} onChange={(e) => setEditState((s) => ({ ...s, type: e.target.value as LevelType }))} className={selectClass}>
                                   {LEVEL_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                                 </select>
@@ -228,12 +228,12 @@ export function CTLLevels({ date, userEmail, readOnly = false, hideHeader = fals
                             </div>
                             {isAdminUser && (
                               <div className="flex-shrink-0 flex items-center gap-2">
-                                <button onClick={() => startEdit(level)} className="text-zinc-300 hover:text-zinc-700 transition-colors" title="Editar">
+                                <button onClick={() => startEdit(level)} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors" title="Editar">
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                   </svg>
                                 </button>
-                                <button onClick={() => handleDelete(level.id)} className="text-zinc-300 hover:text-zinc-700 transition-colors text-xl leading-none" title="Eliminar">×</button>
+                                <button onClick={() => handleDelete(level.id)} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors text-xl leading-none" title="Eliminar">×</button>
                               </div>
                             )}
                           </div>

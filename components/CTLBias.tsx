@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { getCTLBias, saveCTLBias, deleteCTLBias, type BiasEntry } from '@/lib/api'
 import { isAdmin } from '@/lib/config'
+
 const BIAS_OPTIONS = ['Alcista', 'Bajista', 'Neutral']
 const empty: BiasEntry = { bias: '', setup: '', key_levels: '', avoid: '', notes: '' }
 
-const textareaClass = "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none min-h-[80px]"
-const labelClass = "text-xs font-medium uppercase tracking-widest text-zinc-500"
+const textareaClass = "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none min-h-[80px]"
+const labelClass = "text-xs font-medium uppercase tracking-widest text-muted-foreground"
+const selectClass = "w-full h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
 
 type Props = { date: string; userEmail: string; readOnly?: boolean; hideHeader?: boolean }
 
@@ -42,56 +44,54 @@ export function CTLBias({ date, userEmail, readOnly = false, hideHeader = false 
     setEditing(false)
   }
 
-  const biasColor = saved?.bias === 'Alcista' ? 'text-green-600' : saved?.bias === 'Bajista' ? 'text-red-500' : 'text-zinc-500'
-  const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('es-ES', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  })
+  const biasColor = saved?.bias === 'Alcista'
+    ? 'text-green-600 dark:text-green-400'
+    : saved?.bias === 'Bajista'
+    ? 'text-red-500 dark:text-red-400'
+    : 'text-muted-foreground'
 
   return (
     <div className="space-y-5">
       {!hideHeader && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
               </svg>
             </div>
             <div>
-              <p className="font-bold text-zinc-900 text-sm">Bias Collective Trade Lab</p>
-              <p className="text-xs text-zinc-500">Plan del día publicado para el canal</p>
+              <p className="font-bold text-foreground text-sm">Bias Collective Trade Lab</p>
+              <p className="text-xs text-muted-foreground">Plan del día publicado para el canal</p>
             </div>
           </div>
           {isAdminUser && saved && !editing && (
             <div className="flex gap-2">
-              <button onClick={() => setEditing(true)} className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors border border-zinc-200 px-3 py-1.5 rounded-full">Editar</button>
-              <button onClick={handleDelete} className="text-xs font-medium text-zinc-400 hover:text-red-500 transition-colors">Eliminar</button>
+              <button onClick={() => setEditing(true)} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors border border-border px-3 py-1.5 rounded-full">Editar</button>
+              <button onClick={handleDelete} className="text-xs font-medium text-muted-foreground hover:text-red-500 transition-colors">Eliminar</button>
             </div>
           )}
         </div>
       )}
       {hideHeader && isAdminUser && saved && !editing && (
         <div className="flex justify-end gap-2">
-          <button onClick={() => setEditing(true)} className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors border border-zinc-200 px-3 py-1.5 rounded-full">Editar bias</button>
-          <button onClick={handleDelete} className="text-xs font-medium text-zinc-400 hover:text-red-500 transition-colors">Eliminar</button>
+          <button onClick={() => setEditing(true)} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors border border-border px-3 py-1.5 rounded-full">Editar bias</button>
+          <button onClick={handleDelete} className="text-xs font-medium text-muted-foreground hover:text-red-500 transition-colors">Eliminar</button>
         </div>
       )}
 
-      <p className="text-sm text-zinc-500 capitalize">{formattedDate}</p>
-
       {loading ? (
-        <p className="text-sm text-zinc-400 py-4 text-center">Cargando...</p>
+        <p className="text-sm text-muted-foreground py-4 text-center">Cargando...</p>
       ) : !saved && !isAdminUser ? (
         <div className="rounded-lg border bg-card p-8 text-center">
-          <p className="text-sm text-zinc-400">Aún no se ha publicado el bias para hoy.</p>
+          <p className="text-sm text-muted-foreground">Aún no se ha publicado el bias para hoy.</p>
         </div>
       ) : (isAdminUser && (!saved || editing)) ? (
         /* Admin form */
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-5 space-y-4">
+        <div className="rounded-lg border bg-muted p-5 space-y-4">
           <div className="space-y-1.5">
             <p className={labelClass}>Bias</p>
-            <select value={entry.bias} onChange={(e) => setEntry({ ...entry, bias: e.target.value })}
-              className="w-full h-9 rounded-lg border border-input bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50">
+            <select value={entry.bias} onChange={(e) => setEntry({ ...entry, bias: e.target.value })} className={selectClass}>
               <option value="">Seleccionar...</option>
               {BIAS_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
@@ -118,12 +118,12 @@ export function CTLBias({ date, userEmail, readOnly = false, hideHeader = false 
           </div>
           <div className="flex gap-2">
             <button onClick={handleSave} disabled={saving}
-              className="bg-zinc-900 hover:bg-black disabled:opacity-60 text-white text-sm font-semibold px-5 py-2 rounded-full transition-colors">
+              className="bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground text-sm font-semibold px-5 py-2 rounded-full transition-colors">
               {saving ? 'Guardando...' : 'Publicar'}
             </button>
             {editing && (
               <button onClick={() => { setEditing(false); setEntry(saved!) }}
-                className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors border border-zinc-200 px-5 py-2 rounded-full">
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors border border-border px-5 py-2 rounded-full">
                 Cancelar
               </button>
             )}
@@ -134,7 +134,7 @@ export function CTLBias({ date, userEmail, readOnly = false, hideHeader = false 
         <div className="space-y-4">
           {saved.bias && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">Bias</span>
+              <span className={labelClass}>Bias</span>
               <span className={`font-bold text-base ${biasColor}`}>{saved.bias}</span>
             </div>
           )}
@@ -146,7 +146,7 @@ export function CTLBias({ date, userEmail, readOnly = false, hideHeader = false 
           ].filter(f => f.value).map(({ label, value }) => (
             <div key={label} className="space-y-1">
               <p className={labelClass}>{label}</p>
-              <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">{value}</p>
+              <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{value}</p>
             </div>
           ))}
         </div>

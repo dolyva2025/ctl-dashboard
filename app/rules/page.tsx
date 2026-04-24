@@ -261,6 +261,7 @@ export default function RulesPage() {
   const t = useT(isDark)
 
   const [tab, setTab] = useState<'hoy' | 'reglas' | 'colectivas'>('hoy')
+  const [ruleSource, setRuleSource] = useState<'all' | 'ctl' | 'mias'>('all')
   const [ctlRules, setCtlRules]     = useState<Rule[]>([])
   const [userRules, setUserRules]   = useState<Rule[]>([])
   const [checks, setChecks]         = useState<Record<string, boolean>>({})
@@ -295,7 +296,11 @@ export default function RulesPage() {
   const fixedFlat: FlatRule[] = FIXED_RULES.map((r) => ({ ...r, ruleKey: r.id }))
   const ctlFlat: FlatRule[]   = ctlRules.map((r) => ({ id: r.id, ruleKey: `ctl-${r.id}`, category: r.category, rule: r.rule }))
   const userFlat: FlatRule[]  = userRules.map((r) => ({ id: r.id, ruleKey: `user-${r.id}`, category: r.category, rule: r.rule }))
-  const allRules = [...fixedFlat, ...ctlFlat, ...userFlat]
+  const allRules = ruleSource === 'ctl'
+    ? [...fixedFlat, ...ctlFlat]
+    : ruleSource === 'mias'
+    ? [...userFlat]
+    : [...fixedFlat, ...ctlFlat, ...userFlat]
 
   const followedCount = allRules.filter((r) => checks[r.ruleKey]).length
   const pct = allRules.length > 0 ? Math.round((followedCount / allRules.length) * 100) : 0
@@ -383,7 +388,7 @@ export default function RulesPage() {
         background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
         borderRadius: 10, padding: 4, marginBottom: 24, width: 'fit-content',
       }}>
-        {([['hoy', 'Sesión de Hoy'], ['reglas', 'Mis Reglas'], ['colectivas', 'Colectivas CTL']] as const).map(([id, label]) => (
+        {([['hoy', 'Sesión de Hoy'], ['reglas', 'Mis Reglas'], ['colectivas', 'Reglas CTL']] as const).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -404,6 +409,31 @@ export default function RulesPage() {
       {/* ── Tab: Sesión de Hoy ──────────────────────────────────────────── */}
       {tab === 'hoy' && (
         <div>
+          {/* Rule source toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 11, color: t.muted, letterSpacing: '0.06em' }}>MOSTRAR</span>
+            <div style={{
+              display: 'flex', gap: 2,
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              borderRadius: 8, padding: 3,
+            }}>
+              {([['all', 'Todas'], ['ctl', 'CTL'], ['mias', 'Mis Reglas']] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setRuleSource(id)}
+                  style={{
+                    padding: '5px 14px', borderRadius: 6, fontSize: 12,
+                    fontWeight: ruleSource === id ? 600 : 400, cursor: 'pointer', border: 'none',
+                    background: ruleSource === id ? (isDark ? 'rgba(255,255,255,0.1)' : '#fff') : 'transparent',
+                    color: ruleSource === id ? t.text : t.muted,
+                    boxShadow: ruleSource === id && !isDark ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s',
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          </div>
+
           {/* Progress summary */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, marginBottom: 16 }}>
             <ProgressRing pct={pct} isDark={isDark} />
