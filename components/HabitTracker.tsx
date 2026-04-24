@@ -8,7 +8,6 @@ import { localDateStr } from '@/lib/storage'
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const CELL = 42
-const HALF = CELL / 2
 const DAY_COL = 76
 
 const SECTION_STYLES = {
