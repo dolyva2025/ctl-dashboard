@@ -299,6 +299,10 @@ export async function deleteCustomHabit(id: string): Promise<void> {
   await supabase.from('custom_habits').delete().eq('id', id)
 }
 
+export async function updateCustomHabit(id: string, name: string): Promise<void> {
+  await supabase.from('custom_habits').update({ name }).eq('id', id)
+}
+
 export async function getAllHabitLogs(userId: string, since: string): Promise<Record<string, Record<string, boolean>>> {
   const { data } = await supabase.from('habit_logs').select('habit_id, date, done').eq('user_id', userId).gte('date', since)
   const result: Record<string, Record<string, boolean>> = {}
