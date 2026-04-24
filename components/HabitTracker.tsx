@@ -188,7 +188,7 @@ export function HabitTracker({ userId }: { userId: string }) {
   // ── Layout ───────────────────────────────────────────────────────────────────
 
   const MIN_COLS       = 4
-  const MIN_COLS_SMALL = 2
+  const MIN_COLS_SMALL = 3
 
   const saludCols     = Math.max(MIN_COLS, saludHabits.length)
   const personalCols  = Math.max(MIN_COLS, personalHabits.length)
@@ -325,7 +325,7 @@ export function HabitTracker({ userId }: { userId: string }) {
               style={{ width: proyectosCols * CELL, backgroundColor: SECTION_STYLES.proyectos.bg }}
               className="flex items-center justify-center gap-2 py-2 border-r-2 border-zinc-300 hover:brightness-95 transition-all group"
             >
-              <span style={{ color: SECTION_STYLES.proyectos.text }} className="text-xs font-bold uppercase tracking-widest">Proyectos</span>
+              <span style={{ color: SECTION_STYLES.proyectos.text }} className="text-xs font-bold uppercase tracking-widest text-center leading-tight">Proyectos<br/>Creativos</span>
               <Plus style={{ color: SECTION_STYLES.proyectos.text }} className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
             </button>
 
