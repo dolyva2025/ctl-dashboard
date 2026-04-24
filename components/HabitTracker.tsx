@@ -453,17 +453,17 @@ export function HabitTracker({ userId }: { userId: string }) {
                       <div
                         key={habit.id}
                         style={{
-                          width: CELL, minWidth: CELL,
+                          width: CELL, minWidth: CELL, height: CELL,
                           borderRight: borderStyle,
-                          backgroundColor: done === true ? '#f97316' : done === false && !isFuture && !noTradingWeekend ? '#09090b' : 'transparent',
+                          backgroundColor: done === true ? '#f97316' : done === false && !isFuture ? '#09090b' : 'transparent',
                         }}
-                        className="flex items-center justify-center"
+                        className="flex items-center justify-center flex-shrink-0"
                       >
                         {done === true && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                        {done === false && !isFuture && !noTradingWeekend && (
+                        {done === false && !isFuture && (
                           <span style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>×</span>
                         )}
-                        {done === undefined && !isFuture && !noTradingWeekend && (
+                        {done === undefined && !isFuture && (
                           <span style={{ fontSize: 7, color: '#d4d4d8' }}>●</span>
                         )}
                       </div>
@@ -475,47 +475,49 @@ export function HabitTracker({ userId }: { userId: string }) {
                     return (
                       <div
                         key={habit.id}
-                        style={{ width: CELL, minWidth: CELL, borderRight: borderStyle }}
+                        style={{ width: CELL, minWidth: CELL, height: CELL, borderRight: borderStyle, flexShrink: 0 }}
                       />
                     )
                   }
 
-                  // Custom habits: split-cell (left = ✓ done, right = × not done)
+                  // Custom habits: split-cell — left half = ✓ done, right half = × not done
+                  // Always show faint icons so user knows which side does what
                   return (
                     <div
                       key={habit.id}
-                      style={{ width: CELL, minWidth: CELL, borderRight: borderStyle, display: 'flex', position: 'relative' }}
+                      style={{ width: CELL, minWidth: CELL, height: CELL, borderRight: borderStyle, display: 'flex', flexShrink: 0 }}
                     >
-                      {/* Left half: mark done */}
+                      {/* Left half: ✓ done */}
                       <button
                         onClick={() => canMark && handleMark(habit.id, date, done === true ? null : true)}
                         disabled={!canMark}
                         style={{
-                          width: HALF, height: '100%',
+                          width: '50%', height: '100%',
                           backgroundColor: done === true ? '#f97316' : 'transparent',
                           borderRight: '1px solid #f4f4f5',
                         }}
                         className={`flex items-center justify-center transition-colors ${canMark && done !== true ? 'hover:bg-orange-50' : ''}`}
                       >
-                        {done === true && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                        {done === undefined && !isFuture && (
-                          <span style={{ fontSize: 7, color: '#d4d4d8' }}>●</span>
-                        )}
+                        <Check style={{
+                          width: 9, height: 9, strokeWidth: 3,
+                          color: done === true ? '#ffffff' : !isFuture ? '#d4d4d8' : 'transparent',
+                        }} />
                       </button>
 
-                      {/* Right half: mark not done */}
+                      {/* Right half: × not done */}
                       <button
                         onClick={() => canMark && handleMark(habit.id, date, done === false ? null : false)}
                         disabled={!canMark}
                         style={{
-                          width: HALF, height: '100%',
+                          width: '50%', height: '100%',
                           backgroundColor: done === false && !isFuture ? '#09090b' : 'transparent',
                         }}
                         className={`flex items-center justify-center transition-colors ${canMark && done !== false ? 'hover:bg-zinc-100' : ''}`}
                       >
-                        {done === false && !isFuture && (
-                          <span style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>×</span>
-                        )}
+                        <span style={{
+                          fontSize: 11, fontWeight: 900, lineHeight: 1,
+                          color: done === false && !isFuture ? '#ffffff' : !isFuture ? '#d4d4d8' : 'transparent',
+                        }}>×</span>
                       </button>
                     </div>
                   )
