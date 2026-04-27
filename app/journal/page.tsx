@@ -34,13 +34,14 @@ function parsePnl(text: string): number {
   return isNaN(num) ? 0 : Math.abs(num) * sign
 }
 
-function calcPnl(instrument: string, entrada: string, salida: string): string {
+function calcPnl(instrument: string, entrada: string, salida: string, contratos: string): string {
   const entry = parseFloat(entrada)
   const exit = parseFloat(salida)
+  const qty = parseFloat(contratos) || 1
   if (isNaN(entry) || isNaN(exit) || entry === 0 || exit === 0) return ''
   const tickVal = TICK_VALUES[instrument] ?? 12.5
-  const pnl = ((exit - entry) / 0.25) * tickVal
-  return pnl >= 0 ? String(Math.round(pnl * 100) / 100) : String(Math.round(pnl * 100) / 100)
+  const pnl = ((exit - entry) / 0.25) * tickVal * qty
+  return String(Math.round(pnl * 100) / 100)
 }
 
 function formatPnl(n: number): string {
@@ -85,6 +86,7 @@ interface EntryForm {
   pnlText: string
   sesgo: string
   instrument: string
+  contratos: string
   entrada: string
   salida: string
   stop: string
@@ -97,7 +99,7 @@ interface EntryForm {
 function emptyForm(date: string): EntryForm {
   return {
     date, mood: '😐', titulo: '', pnlText: '', sesgo: '',
-    instrument: 'ES', entrada: '', salida: '', stop: '',
+    instrument: 'ES', contratos: '1', entrada: '', salida: '', stop: '',
     quePaso: '', reglas: '', notas: '', aprendizaje: '',
   }
 }
@@ -108,12 +110,13 @@ function packReflection(form: EntryForm): string {
     reglas: form.reglas,
     notas: form.notas,
     aprendizaje: form.aprendizaje,
+    contratos: form.contratos,
   })
 }
 
-function unpackReflection(r: string | undefined): { quePaso: string; reglas: string; notas: string; aprendizaje: string } {
-  try { if (r) return { notas: '', ...JSON.parse(r) } } catch {}
-  return { quePaso: r ?? '', reglas: '', notas: '', aprendizaje: '' }
+function unpackReflection(r: string | undefined): { quePaso: string; reglas: string; notas: string; aprendizaje: string; contratos: string } {
+  try { if (r) return { notas: '', contratos: '1', ...JSON.parse(r) } } catch {}
+  return { quePaso: r ?? '', reglas: '', notas: '', aprendizaje: '', contratos: '1' }
 }
 
 function tradeToForm(e: Trade): EntryForm {
@@ -132,6 +135,7 @@ function tradeToForm(e: Trade): EntryForm {
     reglas:     ref.reglas,
     notas:      ref.notas,
     aprendizaje: ref.aprendizaje,
+    contratos:  ref.contratos ?? '1',
   }
 }
 
@@ -381,7 +385,7 @@ export default function JournalPage() {
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input value={editForm.pnlText} onChange={(ev) => updEdit('pnlText', ev.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 90 }} />
                   <button
-                    onClick={() => { const v = calcPnl(editForm.instrument, editForm.entrada, editForm.salida); if (v) updEdit('pnlText', v) }}
+                    onClick={() => { const v = calcPnl(editForm.instrument, editForm.entrada, editForm.salida, editForm.contratos); if (v) updEdit('pnlText', v) }}
                     title="Calcular desde entrada/salida"
                     style={{ height: 34, padding: '0 8px', background: surf2, border: `1px solid ${border}`, borderRadius: 7, color: muted, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                   >Calc</button>
@@ -408,6 +412,10 @@ export default function JournalPage() {
                 <select value={editForm.instrument} onChange={(ev) => updEdit('instrument', ev.target.value)} style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}>
                   {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
                 </select>
+              </div>
+              <div style={{ minWidth: 60, maxWidth: 72 }}>
+                <div style={label11}>CONTRATOS</div>
+                <input type="number" min="1" value={editForm.contratos} onChange={(ev) => updEdit('contratos', ev.target.value)} placeholder="1" style={inputStyle} />
               </div>
               <div style={{ flex: 1, minWidth: 90 }}>
                 <div style={label11}>ENTRADA</div>
@@ -556,7 +564,7 @@ export default function JournalPage() {
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 90 }} />
                 <button
-                  onClick={() => { const v = calcPnl(form.instrument, form.entrada, form.salida); if (v) upd('pnlText', v) }}
+                  onClick={() => { const v = calcPnl(form.instrument, form.entrada, form.salida, form.contratos); if (v) upd('pnlText', v) }}
                   title="Calcular desde entrada/salida"
                   style={{ height: 34, padding: '0 8px', background: surf2, border: `1px solid ${border}`, borderRadius: 7, color: muted, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >Calc</button>
@@ -583,6 +591,10 @@ export default function JournalPage() {
               <select value={form.instrument} onChange={(e) => upd('instrument', e.target.value)} style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}>
                 {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
               </select>
+            </div>
+            <div style={{ minWidth: 60, maxWidth: 72 }}>
+              <div style={label11}>CONTRATOS</div>
+              <input type="number" min="1" value={form.contratos} onChange={(e) => upd('contratos', e.target.value)} placeholder="1" style={inputStyle} />
             </div>
             <div style={{ flex: 1, minWidth: 90 }}>
               <div style={label11}>ENTRADA</div>
