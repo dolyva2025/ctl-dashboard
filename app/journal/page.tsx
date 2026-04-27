@@ -22,6 +22,8 @@ const REGLAS_OPTS = [
   { label: 'Parcialmente', color: 'oklch(78% 0.17 88)'  },
 ]
 const INSTRUMENTS = ['ES', 'NQ', 'MES', 'MNQ']
+const DAYS_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 function parsePnl(text: string): number {
   const sign = text.trim().startsWith('-') ? -1 : 1
@@ -38,6 +40,30 @@ function pnlColor(n: number, muted: string): string {
   if (n > 0) return 'oklch(72% 0.18 155)'
   if (n < 0) return 'oklch(65% 0.18 25)'
   return muted
+}
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getWeekDays(weekOffset: number): Date[] {
+  const today = new Date()
+  const dow = today.getDay()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - ((dow + 6) % 7) + weekOffset * 7)
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+}
+
+function weekLabel(days: Date[]): string {
+  const start = days[0]
+  const end = days[4]
+  const sm = start.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  const em = end.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  return `${sm} — ${em}`
 }
 
 interface EntryForm {
@@ -86,6 +112,9 @@ export default function JournalPage() {
   const isDark = theme === 'navy'
 
   const [entries, setEntries] = useState<Trade[]>([])
+  const [tab, setTab] = useState<'semanal' | 'historial'>('semanal')
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState<EntryForm>(emptyForm(todayDate()))
   const [saving, setSaving] = useState(false)
@@ -104,7 +133,7 @@ export default function JournalPage() {
   const muted   = isDark ? 'hsl(228 30% 55%)' : '#71717a'
   const border  = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
   const surface = isDark ? 'hsl(226 48% 11%)' : '#ffffff'
-
+  const surf2   = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
   const inputBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'
   const shadow  = isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.06)'
 
@@ -130,6 +159,31 @@ export default function JournalPage() {
   function upd(key: keyof EntryForm, val: string) {
     setForm((p) => ({ ...p, [key]: val }))
   }
+
+  // ── week data ─────────────────────────────────────────────────────────────
+
+  const weekDays = getWeekDays(weekOffset)
+  const today = new Date()
+  const isCurrentWeek = weekOffset === 0
+
+  // Entries for the current week view
+  const weekDateStrs = weekDays.map(toDateStr)
+  const weekEntries = entries.filter(e => weekDateStrs.includes(e.date))
+
+  // Entries by date (for week grid)
+  const entriesByDate: Record<string, Trade[]> = {}
+  weekDateStrs.forEach(d => { entriesByDate[d] = [] })
+  weekEntries.forEach(e => { entriesByDate[e.date]?.push(e) })
+
+  // Weekly P&L summary
+  const weekPnl = weekEntries.reduce((sum, e) => sum + e.pnl, 0)
+  const weekSessions = weekEntries.length
+  const weekWins = weekEntries.filter(e => e.pnl > 0).length
+
+  // Entries for selected day (semanal detail view)
+  const dayEntries = selectedDay ? (entriesByDate[selectedDay] ?? []) : []
+
+  // ── actions ───────────────────────────────────────────────────────────────
 
   async function handleSave() {
     if (!form.titulo.trim()) return
@@ -177,350 +231,448 @@ export default function JournalPage() {
     return muted
   }
 
+  // ── entry card (reused in both tabs) ──────────────────────────────────────
+
+  function EntryCard({ e }: { e: Trade }) {
+    const isOpen = openId === e.id
+    const ref = unpackReflection(e.reflection)
+    const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    const hasPnl = e.pnl !== 0
+    const pColor = pnlColor(e.pnl, muted)
+    const hasPrice = e.entry !== 0 || e.exit !== 0
+
+    return (
+      <div style={card}>
+        <div
+          onClick={() => setOpenId(isOpen ? null : e.id)}
+          style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+        >
+          <div style={{ fontSize: 26, flexShrink: 0 }}>{e.emotions ?? '😐'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {e.notes || 'Sin título'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: muted }}>{dateLabel}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 5, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: muted }}>
+                {e.instrument}
+              </span>
+              {e.rule_adherence && (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 5, background: sesgoBadgeColor(e.rule_adherence) + '22', color: sesgoBadgeColor(e.rule_adherence) }}>
+                  {e.rule_adherence.toUpperCase()}
+                </span>
+              )}
+              {ref.reglas && (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 5, background: reglasBadgeColor(ref.reglas) + '22', color: reglasBadgeColor(ref.reglas) }}>
+                  {ref.reglas.toUpperCase()}
+                </span>
+              )}
+            </div>
+          </div>
+          {hasPnl && (
+            <div style={{ fontSize: 16, fontWeight: 800, color: pColor, flexShrink: 0 }}>{formatPnl(e.pnl)}</div>
+          )}
+          <div style={{ color: muted, fontSize: 11, flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</div>
+        </div>
+
+        {isOpen && (
+          <div style={{ padding: '0 20px 20px', borderTop: `1px solid ${border}` }}>
+            {hasPrice && (
+              <div style={{ display: 'flex', gap: 20, marginTop: 16 }}>
+                {([['ENTRADA', e.entry], ['SALIDA', e.exit], ['STOP', e.stop]] as const).map(([lbl, val]) =>
+                  (val as number) !== 0 ? (
+                    <div key={lbl}>
+                      <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 3 }}>{lbl}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: text }}>{val}</div>
+                    </div>
+                  ) : null
+                )}
+              </div>
+            )}
+            {[
+              ['¿QUÉ PASÓ?', ref.quePaso],
+              ['¿SEGUISTE TUS REGLAS?', ref.reglas],
+              ['NOTAS', ref.notas],
+              ['APRENDIZAJE', ref.aprendizaje],
+            ].map(([lbl, val]) => val ? (
+              <div key={lbl} style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 5 }}>{lbl}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.7, color: text, opacity: 0.8, whiteSpace: 'pre-wrap' }}>{val}</div>
+              </div>
+            ) : null)}
+            <button
+              onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id) }}
+              style={{ marginTop: 20, background: 'transparent', border: `1px solid ${border}`, borderRadius: 8, color: muted, fontSize: 12, padding: '5px 12px', cursor: 'pointer', opacity: 0.7 }}
+            >
+              Eliminar entrada
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── new entry form ────────────────────────────────────────────────────────
+
+  function EntryForm() {
+    return (
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${border}`, fontSize: 13, color: muted }}>
+          {new Date(form.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </div>
+        <div style={{ padding: 24 }}>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={label11}>FECHA DE LA SESIÓN</div>
+            <input type="date" value={form.date} onChange={(e) => upd('date', e.target.value)} style={{ ...inputStyle, width: 'auto' }} />
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={label11}>ESTADO DE ÁNIMO</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {MOODS.map((m) => (
+                <button key={m} onClick={() => upd('mood', m)} style={{
+                  fontSize: 24,
+                  background: form.mood === m ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                  border: `2px solid ${form.mood === m ? (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)') : 'transparent'}`,
+                  borderRadius: 10, padding: '5px 9px', cursor: 'pointer',
+                }}>{m}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 16 }}>
+            <div>
+              <div style={label11}>TÍTULO / RESUMEN</div>
+              <input value={form.titulo} onChange={(e) => upd('titulo', e.target.value)} placeholder="ej. Buen día, seguí el plan" style={inputStyle} />
+            </div>
+            <div>
+              <div style={label11}>P&amp;L</div>
+              <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={label11}>SESGO DE LA SESIÓN</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {SESGOS.map(({ label: lbl, value, color }) => (
+                <button key={value} onClick={() => upd('sesgo', form.sesgo === value ? '' : value)} style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+                  background: form.sesgo === value ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                  color: form.sesgo === value ? '#0A0A0C' : muted,
+                }}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 90 }}>
+              <div style={label11}>INSTRUMENTO</div>
+              <select value={form.instrument} onChange={(e) => upd('instrument', e.target.value)} style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}>
+                {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 90 }}>
+              <div style={label11}>ENTRADA</div>
+              <input type="number" value={form.entrada} onChange={(e) => upd('entrada', e.target.value)} placeholder="5280.00" style={inputStyle} />
+            </div>
+            <div style={{ flex: 1, minWidth: 90 }}>
+              <div style={label11}>SALIDA</div>
+              <input type="number" value={form.salida} onChange={(e) => upd('salida', e.target.value)} placeholder="5290.00" style={inputStyle} />
+            </div>
+            <div style={{ flex: 1, minWidth: 90 }}>
+              <div style={label11}>STOP</div>
+              <input type="number" value={form.stop} onChange={(e) => upd('stop', e.target.value)} placeholder="5275.00" style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={label11}>¿QUÉ PASÓ?</div>
+            <textarea value={form.quePaso} onChange={(e) => upd('quePaso', e.target.value)} placeholder="Describe cómo fue la sesión..." style={taStyle} />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={label11}>¿SEGUISTE TUS REGLAS?</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {REGLAS_OPTS.map(({ label: lbl, color }) => (
+                <button key={lbl} onClick={() => upd('reglas', form.reglas === lbl ? '' : lbl)} style={{
+                  padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  background: form.reglas === lbl ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                  border: `1.5px solid ${form.reglas === lbl ? color : border}`,
+                  color: form.reglas === lbl ? '#0A0A0C' : text, transition: 'all 0.15s',
+                }}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={label11}>NOTAS</div>
+            <textarea value={form.notas} onChange={(e) => upd('notas', e.target.value)} placeholder="Notas adicionales sobre la sesión..." style={taStyle} />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={label11}>APRENDIZAJE DEL DÍA</div>
+            <textarea value={form.aprendizaje} onChange={(e) => upd('aprendizaje', e.target.value)} placeholder="¿Qué llevarás a mañana?" style={taStyle} />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button onClick={handleSave} disabled={saving || !form.titulo.trim()} style={{
+              height: 38, padding: '0 20px',
+              background: saving || !form.titulo.trim() ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') : ACCENT,
+              border: 'none', borderRadius: 9,
+              color: saving || !form.titulo.trim() ? muted : '#0A0A0C',
+              fontWeight: 700, fontSize: 13, cursor: saving || !form.titulo.trim() ? 'default' : 'pointer',
+            }}>
+              {saving ? 'Guardando...' : 'Guardar Entrada'}
+            </button>
+            <button onClick={() => setAdding(false)} style={{
+              height: 38, padding: '0 20px', background: 'transparent',
+              border: `1px solid ${border}`, borderRadius: 9, color: muted, fontSize: 13, cursor: 'pointer',
+            }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── render ────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '8px 0 40px', color: text }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16 }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.12em', color: muted, marginBottom: 4 }}>REGISTRO</div>
-          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', color: text }}>
-            Diario de Trading
-          </h1>
+          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', color: text }}>Diario de Trading</h1>
           <div style={{ fontSize: 13, color: muted, marginTop: 4 }}>
             {entries.length} {entries.length === 1 ? 'entrada registrada' : 'entradas registradas'}
           </div>
         </div>
-
         {!adding && (
-          <button
-            onClick={() => { setAdding(true); setForm(emptyForm(todayDate())) }}
-            style={{
-              flexShrink: 0, height: 38, padding: '0 18px',
-              background: text, border: 'none', borderRadius: 10,
-              color: isDark ? '#0A0A0C' : '#fff',
-              fontWeight: 700, fontSize: 13, cursor: 'pointer',
-            }}
-          >
+          <button onClick={() => { setAdding(true); setForm(emptyForm(todayDate())) }} style={{
+            flexShrink: 0, height: 38, padding: '0 18px',
+            background: text, border: 'none', borderRadius: 10,
+            color: isDark ? '#0A0A0C' : '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+          }}>
             + Nueva Entrada
           </button>
         )}
       </div>
 
-      {/* ── New entry form ─────────────────────────────────────────────────── */}
-      {adding && (
-        <div style={{ ...card, marginBottom: 20 }}>
-          <div style={{ padding: '16px 24px', borderBottom: `1px solid ${border}`, fontSize: 13, color: muted }}>
-            {new Date(form.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </div>
-          <div style={{ padding: 24 }}>
+      {/* New entry form */}
+      {adding && <EntryForm />}
 
-            {/* Date selector */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={label11}>FECHA DE LA SESIÓN</div>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => upd('date', e.target.value)}
-                style={{ ...inputStyle, width: 'auto' }}
-              />
-            </div>
+      {/* Tabs */}
+      <div style={{
+        display: 'flex', gap: 2,
+        background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        borderRadius: 10, padding: 4, marginBottom: 24, width: 'fit-content',
+      }}>
+        {([['semanal', 'Semanal'], ['historial', 'Historial']] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding: '7px 20px', borderRadius: 7, fontSize: 13,
+            fontWeight: tab === id ? 600 : 400, cursor: 'pointer', border: 'none',
+            background: tab === id ? (isDark ? 'rgba(255,255,255,0.1)' : '#fff') : 'transparent',
+            color: tab === id ? text : muted,
+            boxShadow: tab === id && !isDark ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.15s',
+          }}>{label}</button>
+        ))}
+      </div>
 
-            {/* Mood */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={label11}>ESTADO DE ÁNIMO</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {MOODS.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => upd('mood', m)}
-                    style={{
-                      fontSize: 24,
-                      background: form.mood === m ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent',
-                      border: `2px solid ${form.mood === m ? (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)') : 'transparent'}`,
-                      borderRadius: 10, padding: '5px 9px', cursor: 'pointer',
-                    }}
-                  >{m}</button>
-                ))}
-              </div>
-            </div>
+      {/* ══ SEMANAL TAB ══════════════════════════════════════════════════════ */}
+      {tab === 'semanal' && (
+        <div>
+          {/* Week navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <button onClick={() => { setWeekOffset(o => o - 1); setSelectedDay(null) }} style={{
+              background: surf2, border: `1px solid ${border}`, borderRadius: 8,
+              color: text, cursor: 'pointer', fontSize: 18, width: 34, height: 34,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>‹</button>
 
-            {/* Título + P&L */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 16 }}>
-              <div>
-                <div style={label11}>TÍTULO / RESUMEN</div>
-                <input value={form.titulo} onChange={(e) => upd('titulo', e.target.value)} placeholder="ej. Buen día, seguí el plan" style={inputStyle} />
-              </div>
-              <div>
-                <div style={label11}>P&amp;L</div>
-                <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
-              </div>
-            </div>
-
-            {/* Sesgo */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={label11}>SESGO DE LA SESIÓN</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {SESGOS.map(({ label: lbl, value, color }) => (
-                  <button
-                    key={value}
-                    onClick={() => upd('sesgo', form.sesgo === value ? '' : value)}
-                    style={{
-                      padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
-                      background: form.sesgo === value ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
-                      color: form.sesgo === value ? '#0A0A0C' : muted,
-                    }}
-                  >{lbl}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Instrumento + Entrada / Salida / Stop */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 90 }}>
-                <div style={label11}>INSTRUMENTO</div>
-                <select
-                  value={form.instrument}
-                  onChange={(e) => upd('instrument', e.target.value)}
-                  style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}
-                >
-                  {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 1, minWidth: 90 }}>
-                <div style={label11}>ENTRADA</div>
-                <input
-                  type="number"
-                  value={form.entrada}
-                  onChange={(e) => upd('entrada', e.target.value)}
-                  placeholder="5280.00"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 90 }}>
-                <div style={label11}>SALIDA</div>
-                <input
-                  type="number"
-                  value={form.salida}
-                  onChange={(e) => upd('salida', e.target.value)}
-                  placeholder="5290.00"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 90 }}>
-                <div style={label11}>STOP</div>
-                <input
-                  type="number"
-                  value={form.stop}
-                  onChange={(e) => upd('stop', e.target.value)}
-                  placeholder="5275.00"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            {/* ¿Qué pasó? */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={label11}>¿QUÉ PASÓ?</div>
-              <textarea
-                value={form.quePaso}
-                onChange={(e) => upd('quePaso', e.target.value)}
-                placeholder="Describe cómo fue la sesión..."
-                style={taStyle}
-              />
-            </div>
-
-            {/* ¿Seguiste tus reglas? — buttons */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={label11}>¿SEGUISTE TUS REGLAS?</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {REGLAS_OPTS.map(({ label: lbl, color }) => (
-                  <button
-                    key={lbl}
-                    onClick={() => upd('reglas', form.reglas === lbl ? '' : lbl)}
-                    style={{
-                      padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                      background: form.reglas === lbl ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
-                      border: `1.5px solid ${form.reglas === lbl ? color : border}`,
-                      color: form.reglas === lbl ? '#0A0A0C' : text,
-                      transition: 'all 0.15s',
-                    }}
-                  >{lbl}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Notas */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={label11}>NOTAS</div>
-              <textarea
-                value={form.notas}
-                onChange={(e) => upd('notas', e.target.value)}
-                placeholder="Notas adicionales sobre la sesión..."
-                style={taStyle}
-              />
-            </div>
-
-            {/* Aprendizaje */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={label11}>APRENDIZAJE DEL DÍA</div>
-              <textarea
-                value={form.aprendizaje}
-                onChange={(e) => upd('aprendizaje', e.target.value)}
-                placeholder="¿Qué llevarás a mañana?"
-                style={taStyle}
-              />
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.titulo.trim()}
-                style={{
-                  height: 38, padding: '0 20px',
-                  background: saving || !form.titulo.trim() ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') : ACCENT,
-                  border: 'none', borderRadius: 9,
-                  color: saving || !form.titulo.trim() ? muted : '#0A0A0C',
-                  fontWeight: 700, fontSize: 13, cursor: saving || !form.titulo.trim() ? 'default' : 'pointer',
-                }}
-              >
-                {saving ? 'Guardando...' : 'Guardar Entrada'}
-              </button>
-              <button
-                onClick={() => setAdding(false)}
-                style={{
-                  height: 38, padding: '0 20px', background: 'transparent',
-                  border: `1px solid ${border}`, borderRadius: 9,
-                  color: muted, fontSize: 13, cursor: 'pointer',
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Empty state ────────────────────────────────────────────────────── */}
-      {entries.length === 0 && !adding && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: muted }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📒</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, color: text }}>Sin entradas aún</div>
-          <div style={{ fontSize: 13 }}>Registra tu primera sesión después de operar</div>
-        </div>
-      )}
-
-      {/* ── Entry list ─────────────────────────────────────────────────────── */}
-      {entries.map((e) => {
-        const isOpen = openId === e.id
-        const ref = unpackReflection(e.reflection)
-        const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
-        const hasPnl = e.pnl !== 0
-        const pColor = pnlColor(e.pnl, muted)
-        const hasPrice = e.entry !== 0 || e.exit !== 0
-
-        return (
-          <div key={e.id} style={card}>
-            {/* Card header (always visible) */}
-            <div
-              onClick={() => setOpenId(isOpen ? null : e.id)}
-              style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
-            >
-              <div style={{ fontSize: 26, flexShrink: 0 }}>{e.emotions ?? '😐'}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {e.notes || 'Sin título'}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, color: muted }}>{dateLabel}</span>
-                  {/* Instrument badge */}
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                    padding: '2px 6px', borderRadius: 5,
-                    background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                    color: muted,
-                  }}>
-                    {e.instrument}
-                  </span>
-                  {e.rule_adherence && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                      padding: '2px 6px', borderRadius: 5,
-                      background: sesgoBadgeColor(e.rule_adherence) + '22',
-                      color: sesgoBadgeColor(e.rule_adherence),
-                    }}>
-                      {e.rule_adherence.toUpperCase()}
-                    </span>
-                  )}
-                  {ref.reglas && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                      padding: '2px 6px', borderRadius: 5,
-                      background: reglasBadgeColor(ref.reglas) + '22',
-                      color: reglasBadgeColor(ref.reglas),
-                    }}>
-                      {ref.reglas.toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {hasPnl && (
-                <div style={{ fontSize: 16, fontWeight: 800, color: pColor, flexShrink: 0 }}>
-                  {formatPnl(e.pnl)}
-                </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: text }}>{weekLabel(weekDays)}</div>
+              {!isCurrentWeek && (
+                <button onClick={() => { setWeekOffset(0); setSelectedDay(null) }} style={{
+                  background: 'transparent', border: 'none', color: ACCENT,
+                  fontSize: 11, cursor: 'pointer', marginTop: 2, fontWeight: 600,
+                }}>Semana actual</button>
               )}
-              <div style={{ color: muted, fontSize: 11, flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</div>
             </div>
 
-            {/* Expanded content */}
-            {isOpen && (
-              <div style={{ padding: '0 20px 20px', borderTop: `1px solid ${border}` }}>
+            <button
+              onClick={() => { setWeekOffset(o => o + 1); setSelectedDay(null) }}
+              disabled={isCurrentWeek}
+              style={{
+                background: surf2, border: `1px solid ${border}`, borderRadius: 8,
+                color: isCurrentWeek ? muted : text, cursor: isCurrentWeek ? 'default' : 'pointer',
+                fontSize: 18, width: 34, height: 34, opacity: isCurrentWeek ? 0.3 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>›</button>
+          </div>
 
-                {/* Trade prices row */}
-                {hasPrice && (
-                  <div style={{ display: 'flex', gap: 20, marginTop: 16 }}>
-                    {[
-                      ['ENTRADA', e.entry],
-                      ['SALIDA',  e.exit],
-                      ['STOP',    e.stop],
-                    ].map(([lbl, val]) => (val as number) !== 0 ? (
-                      <div key={lbl as string}>
-                        <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 3 }}>{lbl}</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: text }}>{val}</div>
-                      </div>
-                    ) : null)}
-                  </div>
-                )}
+          {/* Weekly summary strip */}
+          {weekSessions > 0 && (
+            <div style={{
+              display: 'flex', gap: 10, marginBottom: 16,
+              background: surface, borderRadius: 12, border: `1px solid ${border}`,
+              padding: '12px 20px', boxShadow: shadow,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 3 }}>P&L SEMANAL</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: pnlColor(weekPnl, muted) }}>{formatPnl(weekPnl)}</div>
+              </div>
+              <div style={{ width: 1, background: border }} />
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 3 }}>SESIONES</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: text }}>{weekSessions}</div>
+              </div>
+              <div style={{ width: 1, background: border }} />
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 3 }}>WIN RATE</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: weekSessions > 0 ? pnlColor(weekWins / weekSessions - 0.5, muted) : muted }}>
+                  {weekSessions > 0 ? `${Math.round((weekWins / weekSessions) * 100)}%` : '—'}
+                </div>
+              </div>
+            </div>
+          )}
 
-                {[
-                  ['¿QUÉ PASÓ?',            ref.quePaso],
-                  ['¿SEGUISTE TUS REGLAS?',  ref.reglas],
-                  ['NOTAS',                  ref.notas],
-                  ['APRENDIZAJE',            ref.aprendizaje],
-                ].map(([lbl, val]) => val ? (
-                  <div key={lbl} style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: 10, color: muted, letterSpacing: '0.08em', marginBottom: 5 }}>{lbl}</div>
-                    <div style={{ fontSize: 13, lineHeight: 1.7, color: text, opacity: 0.8, whiteSpace: 'pre-wrap' }}>{val}</div>
-                  </div>
-                ) : null)}
+          {/* Day cards grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 20 }}>
+            {weekDays.map((d) => {
+              const ds = toDateStr(d)
+              const dayE = entriesByDate[ds] ?? []
+              const isToday = d.toDateString() === today.toDateString()
+              const isFuture = d > today
+              const isSelected = selectedDay === ds
+              const dayPnl = dayE.reduce((s, e) => s + e.pnl, 0)
+              const hasPnl = dayE.some(e => e.pnl !== 0)
 
+              return (
                 <button
-                  onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id) }}
+                  key={ds}
+                  onClick={() => !isFuture && setSelectedDay(isSelected ? null : ds)}
+                  disabled={isFuture}
                   style={{
-                    marginTop: 20, background: 'transparent',
-                    border: `1px solid ${border}`, borderRadius: 8,
-                    color: muted, fontSize: 12, padding: '5px 12px', cursor: 'pointer',
-                    opacity: 0.7,
+                    padding: '12px 10px', borderRadius: 12, border: 'none', cursor: isFuture ? 'default' : 'pointer',
+                    background: isSelected ? `${ACCENT}20` : surface,
+                    outline: isSelected ? `2px solid ${ACCENT}` : `1px solid ${isToday ? ACCENT + '60' : border}`,
+                    textAlign: 'center', transition: 'all 0.15s',
+                    opacity: isFuture ? 0.35 : 1,
+                    boxShadow: shadow,
                   }}
                 >
-                  Eliminar entrada
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: isToday ? ACCENT : muted, marginBottom: 4 }}>
+                    {DAYS_ES[d.getDay()].toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: text, marginBottom: 6 }}>{d.getDate()}</div>
+
+                  {dayE.length > 0 ? (
+                    <>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>{dayE[0].emotions ?? '😐'}</div>
+                      {hasPnl && (
+                        <div style={{ fontSize: 11, fontWeight: 700, color: pnlColor(dayPnl, muted) }}>
+                          {formatPnl(dayPnl)}
+                        </div>
+                      )}
+                      {dayE.length > 1 && (
+                        <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>+{dayE.length - 1} más</div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 18, color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>·</div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Selected day entries */}
+          {selectedDay && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: muted }}>
+                  {DAYS_LONG[new Date(selectedDay + 'T12:00:00').getDay()].toUpperCase()} {new Date(selectedDay + 'T12:00:00').getDate()}
+                </span>
+                <div style={{ flex: 1, height: 1, background: border }} />
+                <button
+                  onClick={() => { setAdding(true); setForm(emptyForm(selectedDay)) }}
+                  style={{ fontSize: 11, color: ACCENT, background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  + Agregar entrada para este día
                 </button>
               </div>
-            )}
-          </div>
-        )
-      })}
+              {dayEntries.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 20px', color: muted, fontSize: 13 }}>
+                  Sin entradas para este día
+                </div>
+              ) : (
+                dayEntries.map(e => <EntryCard key={e.id} e={e} />)
+              )}
+            </div>
+          )}
+
+          {/* Empty week */}
+          {weekSessions === 0 && !selectedDay && (
+            <div style={{ textAlign: 'center', padding: '48px 20px', color: muted }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>📒</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: text, marginBottom: 4 }}>Sin entradas esta semana</div>
+              <div style={{ fontSize: 13 }}>Selecciona un día para agregar tu primera entrada</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ HISTORIAL TAB ════════════════════════════════════════════════════ */}
+      {tab === 'historial' && (
+        <div>
+          {entries.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: muted }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📒</div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, color: text }}>Sin entradas aún</div>
+              <div style={{ fontSize: 13 }}>Registra tu primera sesión después de operar</div>
+            </div>
+          ) : (
+            (() => {
+              // Group by week
+              const byWeek: Record<string, Trade[]> = {}
+              entries.forEach(e => {
+                const d = new Date(e.date + 'T12:00:00')
+                const dow = d.getDay()
+                const mon = new Date(d)
+                mon.setDate(d.getDate() - ((dow + 6) % 7))
+                const wk = toDateStr(mon)
+                if (!byWeek[wk]) byWeek[wk] = []
+                byWeek[wk].push(e)
+              })
+              return Object.entries(byWeek)
+                .sort(([a], [b]) => b.localeCompare(a))
+                .map(([weekStart, wEntries]) => {
+                  const wPnl = wEntries.reduce((s, e) => s + e.pnl, 0)
+                  const fri = new Date(weekStart + 'T12:00:00')
+                  fri.setDate(fri.getDate() + 4)
+                  const rangeLabel = `${new Date(weekStart + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} — ${fri.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`
+                  return (
+                    <div key={weekStart} style={{ marginBottom: 28 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: muted }}>{rangeLabel}</span>
+                        <div style={{ flex: 1, height: 1, background: border }} />
+                        {wPnl !== 0 && (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: pnlColor(wPnl, muted) }}>{formatPnl(wPnl)}</span>
+                        )}
+                      </div>
+                      {wEntries.map(e => <EntryCard key={e.id} e={e} />)}
+                    </div>
+                  )
+                })
+            })()
+          )}
+        </div>
+      )}
     </div>
   )
 }
