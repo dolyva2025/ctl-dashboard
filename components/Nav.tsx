@@ -11,7 +11,7 @@ const links = [
   { href: '/', label: 'Análisis Pre Sesión' },
   { href: '/levels', label: 'Pre-Market Plan' },
   { href: '/rules', label: 'Reglas' },
-  { href: '/journal', label: 'Diario' },
+  { href: '/journal', label: 'Diario de Trading' },
   { href: '/habitos', label: 'Hábitos' },
 ]
 

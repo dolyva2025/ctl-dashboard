@@ -60,7 +60,7 @@ const AUTO_HABITS = [
   { id: 'analysis', name: 'Pre-Mercado' },
   { id: 'prep',     name: 'Trading Prep' },
   { id: 'rules',    name: 'Reglas' },
-  { id: 'journal',  name: 'Diario' },
+  { id: 'journal',  name: 'Diario de Trading' },
 ]
 
 // ── Main Component ─────────────────────────────────────────────────────────────

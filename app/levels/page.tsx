@@ -315,7 +315,7 @@ export default function LevelsPage() {
           {/* SEMANAL section */}
           <div style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>SEMANAL</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>NIVELES SEMANA</span>
               <div style={{ flex: 1, height: 1, background: t.border }} />
               {/* Always-visible bias pill */}
               {weeklyBias && (
@@ -362,7 +362,7 @@ export default function LevelsPage() {
           {/* DIARIO section */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>DIARIO</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>NIVELES DIARIOS</span>
               <div style={{ flex: 1, height: 1, background: t.border }} />
             </div>
 
@@ -389,7 +389,7 @@ export default function LevelsPage() {
           {/* SEMANAL section */}
           <div style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>SEMANAL</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>NIVELES SEMANA</span>
               <div style={{ flex: 1, height: 1, background: t.border }} />
               {/* Always-visible user weekly bias */}
               {userWeekly.bias && (() => {
@@ -477,7 +477,7 @@ export default function LevelsPage() {
           {/* DIARIO section */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>DIARIO</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>NIVELES DIARIOS</span>
               <div style={{ flex: 1, height: 1, background: t.border }} />
             </div>
 
