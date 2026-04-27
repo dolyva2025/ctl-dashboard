@@ -125,7 +125,7 @@ function tradeToForm(e: Trade): EntryForm {
     date:       e.date,
     mood:       e.emotions ?? '😐',
     titulo:     e.notes ?? '',
-    pnlText:    e.pnl !== 0 ? String(Math.abs(e.pnl)) : '',
+    pnlText:    e.pnl !== 0 ? String(e.pnl) : '',
     sesgo:      e.rule_adherence ?? '',
     instrument: e.instrument ?? 'ES',
     entrada:    e.entry  !== 0 ? String(e.entry)  : '',
