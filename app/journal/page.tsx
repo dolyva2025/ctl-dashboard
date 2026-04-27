@@ -256,7 +256,7 @@ export default function JournalPage() {
 
   // Weekly P&L summary
   const weekPnl = weekEntries.reduce((sum, e) => sum + e.pnl, 0)
-  const weekSessions = weekEntries.length
+  const weekSessions = weekDateStrs.filter(d => (entriesByDate[d]?.length ?? 0) > 0).length
   const weekWins = weekEntries.filter(e => e.pnl > 0).length
 
   // Entries for selected day (semanal detail view)
@@ -775,8 +775,8 @@ export default function JournalPage() {
               <div style={{ width: 1, background: border }} />
               <div style={{ flex: 1, textAlign: 'right' }}>
                 <div style={{ fontSize: 10, color: muted, letterSpacing: '0.07em', marginBottom: 3 }}>WIN RATE</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: weekSessions > 0 ? pnlColor(weekWins / weekSessions - 0.5, muted) : muted }}>
-                  {weekSessions > 0 ? `${Math.round((weekWins / weekSessions) * 100)}%` : '—'}
+                <div style={{ fontSize: 22, fontWeight: 800, color: weekEntries.length > 0 ? pnlColor(weekWins / weekEntries.length - 0.5, muted) : muted }}>
+                  {weekEntries.length > 0 ? `${Math.round((weekWins / weekEntries.length) * 100)}%` : '—'}
                 </div>
               </div>
             </div>
@@ -820,9 +820,9 @@ export default function JournalPage() {
                           {formatPnl(dayPnl)}
                         </div>
                       )}
-                      {dayE.length > 1 && (
-                        <div style={{ fontSize: 10, color: muted, marginTop: 2 }}>+{dayE.length - 1} más</div>
-                      )}
+                      <div style={{ fontSize: 10, color: muted, marginTop: 3 }}>
+                        {dayE.length} {dayE.length === 1 ? 'trade' : 'trades'}
+                      </div>
                     </>
                   ) : (
                     <div style={{ fontSize: 18, color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>·</div>
