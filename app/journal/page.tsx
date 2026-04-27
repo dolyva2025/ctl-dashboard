@@ -22,6 +22,9 @@ const REGLAS_OPTS = [
   { label: 'Parcialmente', color: 'oklch(78% 0.17 88)'  },
 ]
 const INSTRUMENTS = ['ES', 'NQ', 'MES', 'MNQ']
+const TICK_VALUES: Record<string, number> = { ES: 12.5, NQ: 5, MES: 1.25, MNQ: 0.5 }
+const ACCOUNT_TABS = ['Evaluación', 'Funded', 'Personal'] as const
+type AccountTab = typeof ACCOUNT_TABS[number]
 const DAYS_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -29,6 +32,15 @@ function parsePnl(text: string): number {
   const sign = text.trim().startsWith('-') ? -1 : 1
   const num = parseFloat(text.replace(/[^0-9.]/g, ''))
   return isNaN(num) ? 0 : Math.abs(num) * sign
+}
+
+function calcPnl(instrument: string, entrada: string, salida: string): string {
+  const entry = parseFloat(entrada)
+  const exit = parseFloat(salida)
+  if (isNaN(entry) || isNaN(exit) || entry === 0 || exit === 0) return ''
+  const tickVal = TICK_VALUES[instrument] ?? 12.5
+  const pnl = ((exit - entry) / 0.25) * tickVal
+  return pnl >= 0 ? String(Math.round(pnl * 100) / 100) : String(Math.round(pnl * 100) / 100)
 }
 
 function formatPnl(n: number): string {
@@ -131,6 +143,7 @@ export default function JournalPage() {
   const isDark = theme === 'navy'
 
   const [entries, setEntries] = useState<Trade[]>([])
+  const [accountTab, setAccountTab] = useState<AccountTab>('Evaluación')
   const [tab, setTab] = useState<'semanal' | 'historial'>('semanal')
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
@@ -195,6 +208,7 @@ export default function JournalPage() {
     if (!editForm.titulo.trim() || !editingId) return
     setSaving(true)
     try {
+      const originalEntry = entries.find((e) => e.id === editingId)
       const updated = await api.updateTrade(editingId, {
         date:           editForm.date,
         instrument:     editForm.instrument as Trade['instrument'],
@@ -204,7 +218,7 @@ export default function JournalPage() {
         target:         0,
         exit:           parseFloat(editForm.salida) || 0,
         pnl:            parsePnl(editForm.pnlText),
-        account_type:   'Personal',
+        account_type:   originalEntry?.account_type ?? accountTab,
         emotions:       editForm.mood,
         notes:          editForm.titulo,
         rule_adherence: editForm.sesgo || undefined,
@@ -217,6 +231,10 @@ export default function JournalPage() {
     }
   }
 
+  // ── filtered entries by account tab ──────────────────────────────────────
+
+  const filteredEntries = entries.filter(e => (e.account_type ?? 'Personal') === accountTab)
+
   // ── week data ─────────────────────────────────────────────────────────────
 
   const weekDays = getWeekDays(weekOffset)
@@ -225,7 +243,7 @@ export default function JournalPage() {
 
   // Entries for the current week view
   const weekDateStrs = weekDays.map(toDateStr)
-  const weekEntries = entries.filter(e => weekDateStrs.includes(e.date))
+  const weekEntries = filteredEntries.filter(e => weekDateStrs.includes(e.date))
 
   // Entries by date (for week grid)
   const entriesByDate: Record<string, Trade[]> = {}
@@ -255,7 +273,7 @@ export default function JournalPage() {
         target:         0,
         exit:           parseFloat(form.salida) || 0,
         pnl:            parsePnl(form.pnlText),
-        account_type:   'Personal',
+        account_type:   accountTab,
         emotions:       form.mood,
         notes:          form.titulo,
         rule_adherence: form.sesgo || undefined,
@@ -360,7 +378,14 @@ export default function JournalPage() {
               </div>
               <div>
                 <div style={label11}>P&amp;L</div>
-                <input value={editForm.pnlText} onChange={(ev) => updEdit('pnlText', ev.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input value={editForm.pnlText} onChange={(ev) => updEdit('pnlText', ev.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 90 }} />
+                  <button
+                    onClick={() => { const v = calcPnl(editForm.instrument, editForm.entrada, editForm.salida); if (v) updEdit('pnlText', v) }}
+                    title="Calcular desde entrada/salida"
+                    style={{ height: 34, padding: '0 8px', background: surf2, border: `1px solid ${border}`, borderRadius: 7, color: muted, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >Calc</button>
+                </div>
               </div>
             </div>
 
@@ -528,7 +553,14 @@ export default function JournalPage() {
             </div>
             <div>
               <div style={label11}>P&amp;L</div>
-              <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 90 }} />
+                <button
+                  onClick={() => { const v = calcPnl(form.instrument, form.entrada, form.salida); if (v) upd('pnlText', v) }}
+                  title="Calcular desde entrada/salida"
+                  style={{ height: 34, padding: '0 8px', background: surf2, border: `1px solid ${border}`, borderRadius: 7, color: muted, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                >Calc</button>
+              </div>
             </div>
           </div>
 
@@ -628,7 +660,7 @@ export default function JournalPage() {
           <div style={{ fontSize: 11, letterSpacing: '0.12em', color: muted, marginBottom: 4 }}>REGISTRO</div>
           <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', color: text }}>Diario de Trading</h1>
           <div style={{ fontSize: 13, color: muted, marginTop: 4 }}>
-            {entries.length} {entries.length === 1 ? 'entrada registrada' : 'entradas registradas'}
+            {filteredEntries.length} {filteredEntries.length === 1 ? 'entrada registrada' : 'entradas registradas'}
           </div>
         </div>
         {!adding && (
@@ -642,10 +674,27 @@ export default function JournalPage() {
         )}
       </div>
 
+      {/* Account tabs */}
+      <div style={{
+        display: 'flex', gap: 0, marginBottom: 20,
+        borderBottom: `2px solid ${border}`,
+      }}>
+        {ACCOUNT_TABS.map((t) => (
+          <button key={t} onClick={() => { setAccountTab(t); setSelectedDay(null); setOpenId(null) }} style={{
+            padding: '9px 22px', background: 'transparent', border: 'none',
+            borderBottom: accountTab === t ? `2px solid ${ACCENT}` : '2px solid transparent',
+            marginBottom: -2,
+            color: accountTab === t ? ACCENT : muted,
+            fontWeight: accountTab === t ? 700 : 400,
+            fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
+          }}>{t}</button>
+        ))}
+      </div>
+
       {/* New entry form */}
       {adding && renderEntryForm()}
 
-      {/* Tabs */}
+      {/* Semanal/Historial tabs */}
       <div style={{
         display: 'flex', gap: 2,
         background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
@@ -810,7 +859,7 @@ export default function JournalPage() {
       {/* ══ HISTORIAL TAB ════════════════════════════════════════════════════ */}
       {tab === 'historial' && (
         <div>
-          {entries.length === 0 ? (
+          {filteredEntries.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: muted }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>📒</div>
               <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, color: text }}>Sin entradas aún</div>
@@ -820,7 +869,7 @@ export default function JournalPage() {
             (() => {
               // Group by week
               const byWeek: Record<string, Trade[]> = {}
-              entries.forEach(e => {
+              filteredEntries.forEach(e => {
                 const d = new Date(e.date + 'T12:00:00')
                 const dow = d.getDay()
                 const mon = new Date(d)
