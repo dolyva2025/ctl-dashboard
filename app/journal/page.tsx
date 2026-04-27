@@ -104,6 +104,25 @@ function unpackReflection(r: string | undefined): { quePaso: string; reglas: str
   return { quePaso: r ?? '', reglas: '', notas: '', aprendizaje: '' }
 }
 
+function tradeToForm(e: Trade): EntryForm {
+  const ref = unpackReflection(e.reflection)
+  return {
+    date:       e.date,
+    mood:       e.emotions ?? '😐',
+    titulo:     e.notes ?? '',
+    pnlText:    e.pnl !== 0 ? String(Math.abs(e.pnl)) : '',
+    sesgo:      e.rule_adherence ?? '',
+    instrument: e.instrument ?? 'ES',
+    entrada:    e.entry  !== 0 ? String(e.entry)  : '',
+    salida:     e.exit   !== 0 ? String(e.exit)   : '',
+    stop:       e.stop   !== 0 ? String(e.stop)   : '',
+    quePaso:    ref.quePaso,
+    reglas:     ref.reglas,
+    notas:      ref.notas,
+    aprendizaje: ref.aprendizaje,
+  }
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function JournalPage() {
@@ -119,6 +138,8 @@ export default function JournalPage() {
   const [form, setForm] = useState<EntryForm>(emptyForm(todayDate()))
   const [saving, setSaving] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<EntryForm>(emptyForm(todayDate()))
 
   useEffect(() => {
     if (!user) return
@@ -158,6 +179,42 @@ export default function JournalPage() {
 
   function upd(key: keyof EntryForm, val: string) {
     setForm((p) => ({ ...p, [key]: val }))
+  }
+
+  function updEdit(key: keyof EntryForm, val: string) {
+    setEditForm((p) => ({ ...p, [key]: val }))
+  }
+
+  function startEdit(e: Trade) {
+    setEditingId(e.id)
+    setEditForm(tradeToForm(e))
+    setOpenId(e.id)
+  }
+
+  async function handleUpdate() {
+    if (!editForm.titulo.trim() || !editingId) return
+    setSaving(true)
+    try {
+      const updated = await api.updateTrade(editingId, {
+        date:           editForm.date,
+        instrument:     editForm.instrument as Trade['instrument'],
+        direction:      'Long',
+        entry:          parseFloat(editForm.entrada) || 0,
+        stop:           parseFloat(editForm.stop) || 0,
+        target:         0,
+        exit:           parseFloat(editForm.salida) || 0,
+        pnl:            parsePnl(editForm.pnlText),
+        account_type:   'Personal',
+        emotions:       editForm.mood,
+        notes:          editForm.titulo,
+        rule_adherence: editForm.sesgo || undefined,
+        reflection:     packReflection(editForm),
+      })
+      setEntries((p) => p.map((e) => (e.id === editingId ? updated : e)))
+      setEditingId(null)
+    } finally {
+      setSaving(false)
+    }
   }
 
   // ── week data ─────────────────────────────────────────────────────────────
@@ -275,7 +332,122 @@ export default function JournalPage() {
           <div style={{ color: muted, fontSize: 11, flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</div>
         </div>
 
-        {isOpen && (
+        {isOpen && editingId === e.id && (
+          <div style={{ padding: '20px 24px', borderTop: `1px solid ${border}` }}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={label11}>FECHA DE LA SESIÓN</div>
+              <input type="date" value={editForm.date} onChange={(ev) => updEdit('date', ev.target.value)} style={{ ...inputStyle, width: 'auto' }} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={label11}>ESTADO DE ÁNIMO</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {MOODS.map((m) => (
+                  <button key={m} onClick={() => updEdit('mood', m)} style={{
+                    fontSize: 24,
+                    background: editForm.mood === m ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)') : 'transparent',
+                    border: `2px solid ${editForm.mood === m ? (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)') : 'transparent'}`,
+                    borderRadius: 10, padding: '5px 9px', cursor: 'pointer',
+                  }}>{m}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 16 }}>
+              <div>
+                <div style={label11}>TÍTULO / RESUMEN</div>
+                <input value={editForm.titulo} onChange={(ev) => updEdit('titulo', ev.target.value)} placeholder="ej. Buen día, seguí el plan" style={inputStyle} />
+              </div>
+              <div>
+                <div style={label11}>P&amp;L</div>
+                <input value={editForm.pnlText} onChange={(ev) => updEdit('pnlText', ev.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 100 }} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={label11}>SESGO DE LA SESIÓN</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {SESGOS.map(({ label: lbl, value, color }) => (
+                  <button key={value} onClick={() => updEdit('sesgo', editForm.sesgo === value ? '' : value)} style={{
+                    padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+                    background: editForm.sesgo === value ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                    color: editForm.sesgo === value ? '#0A0A0C' : muted,
+                  }}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 90 }}>
+                <div style={label11}>INSTRUMENTO</div>
+                <select value={editForm.instrument} onChange={(ev) => updEdit('instrument', ev.target.value)} style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}>
+                  {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <div style={label11}>ENTRADA</div>
+                <input type="number" value={editForm.entrada} onChange={(ev) => updEdit('entrada', ev.target.value)} placeholder="5280.00" style={inputStyle} />
+              </div>
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <div style={label11}>SALIDA</div>
+                <input type="number" value={editForm.salida} onChange={(ev) => updEdit('salida', ev.target.value)} placeholder="5290.00" style={inputStyle} />
+              </div>
+              <div style={{ flex: 1, minWidth: 90 }}>
+                <div style={label11}>STOP</div>
+                <input type="number" value={editForm.stop} onChange={(ev) => updEdit('stop', ev.target.value)} placeholder="5275.00" style={inputStyle} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>¿QUÉ PASÓ?</div>
+              <textarea value={editForm.quePaso} onChange={(ev) => updEdit('quePaso', ev.target.value)} placeholder="Describe cómo fue la sesión..." style={taStyle} />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>¿SEGUISTE TUS REGLAS?</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {REGLAS_OPTS.map(({ label: lbl, color }) => (
+                  <button key={lbl} onClick={() => updEdit('reglas', editForm.reglas === lbl ? '' : lbl)} style={{
+                    padding: '8px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    background: editForm.reglas === lbl ? color : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                    border: `1.5px solid ${editForm.reglas === lbl ? color : border}`,
+                    color: editForm.reglas === lbl ? '#0A0A0C' : text, transition: 'all 0.15s',
+                  }}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>NOTAS</div>
+              <textarea value={editForm.notas} onChange={(ev) => updEdit('notas', ev.target.value)} placeholder="Notas adicionales sobre la sesión..." style={taStyle} />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={label11}>APRENDIZAJE DEL DÍA</div>
+              <textarea value={editForm.aprendizaje} onChange={(ev) => updEdit('aprendizaje', ev.target.value)} placeholder="¿Qué llevarás a mañana?" style={taStyle} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button onClick={handleUpdate} disabled={saving || !editForm.titulo.trim()} style={{
+                height: 38, padding: '0 20px',
+                background: saving || !editForm.titulo.trim() ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)') : ACCENT,
+                border: 'none', borderRadius: 9,
+                color: saving || !editForm.titulo.trim() ? muted : '#0A0A0C',
+                fontWeight: 700, fontSize: 13, cursor: saving || !editForm.titulo.trim() ? 'default' : 'pointer',
+              }}>
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+              <button onClick={() => setEditingId(null)} style={{
+                height: 38, padding: '0 20px', background: 'transparent',
+                border: `1px solid ${border}`, borderRadius: 9, color: muted, fontSize: 13, cursor: 'pointer',
+              }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isOpen && editingId !== e.id && (
           <div style={{ padding: '0 20px 20px', borderTop: `1px solid ${border}` }}>
             {hasPrice && (
               <div style={{ display: 'flex', gap: 20, marginTop: 16 }}>
@@ -300,12 +472,20 @@ export default function JournalPage() {
                 <div style={{ fontSize: 13, lineHeight: 1.7, color: text, opacity: 0.8, whiteSpace: 'pre-wrap' }}>{val}</div>
               </div>
             ) : null)}
-            <button
-              onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id) }}
-              style={{ marginTop: 20, background: 'transparent', border: `1px solid ${border}`, borderRadius: 8, color: muted, fontSize: 12, padding: '5px 12px', cursor: 'pointer', opacity: 0.7 }}
-            >
-              Eliminar entrada
-            </button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button
+                onClick={(ev) => { ev.stopPropagation(); startEdit(e) }}
+                style={{ background: 'transparent', border: `1px solid ${border}`, borderRadius: 8, color: text, fontSize: 12, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Editar
+              </button>
+              <button
+                onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id) }}
+                style={{ background: 'transparent', border: `1px solid ${border}`, borderRadius: 8, color: muted, fontSize: 12, padding: '5px 12px', cursor: 'pointer', opacity: 0.7 }}
+              >
+                Eliminar entrada
+              </button>
+            </div>
           </div>
         )}
       </div>
