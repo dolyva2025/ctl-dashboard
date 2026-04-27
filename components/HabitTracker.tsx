@@ -257,7 +257,7 @@ export function HabitTracker({ userId }: { userId: string }) {
   const SEC_H  = 42
 
   return (
-    <div style={{ background: T.bg, borderRadius: 16, padding: '28px 24px', color: T.text }}>
+    <div style={{ background: T.bg, borderRadius: 16, padding: '28px 24px', color: T.text, maxWidth: '80%', margin: '0 auto' }}>
 
       {/* Error */}
       {error && (
