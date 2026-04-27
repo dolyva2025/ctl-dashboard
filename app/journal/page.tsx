@@ -34,13 +34,14 @@ function parsePnl(text: string): number {
   return isNaN(num) ? 0 : Math.abs(num) * sign
 }
 
-function calcPnl(instrument: string, entrada: string, salida: string, contratos: string): string {
+function calcPnl(instrument: string, entrada: string, salida: string, contratos: string, direction: 'Long' | 'Short'): string {
   const entry = parseFloat(entrada)
   const exit = parseFloat(salida)
   const qty = parseFloat(contratos) || 1
   if (isNaN(entry) || isNaN(exit) || entry === 0 || exit === 0) return ''
   const tickVal = TICK_VALUES[instrument] ?? 12.5
-  const pnl = ((exit - entry) / 0.25) * tickVal * qty
+  const sign = direction === 'Long' ? 1 : -1
+  const pnl = ((exit - entry) / 0.25) * tickVal * qty * sign
   return String(Math.round(pnl * 100) / 100)
 }
 
@@ -86,6 +87,7 @@ interface EntryForm {
   pnlText: string
   sesgo: string
   instrument: string
+  direction: 'Long' | 'Short'
   contratos: string
   entrada: string
   salida: string
@@ -99,7 +101,7 @@ interface EntryForm {
 function emptyForm(date: string): EntryForm {
   return {
     date, mood: '😐', titulo: '', pnlText: '', sesgo: '',
-    instrument: 'ES', contratos: '1', entrada: '', salida: '', stop: '',
+    instrument: 'ES', direction: 'Long', contratos: '1', entrada: '', salida: '', stop: '',
     quePaso: '', reglas: '', notas: '', aprendizaje: '',
   }
 }
@@ -128,6 +130,7 @@ function tradeToForm(e: Trade): EntryForm {
     pnlText:    e.pnl !== 0 ? String(e.pnl) : '',
     sesgo:      e.rule_adherence ?? '',
     instrument: e.instrument ?? 'ES',
+    direction:  e.direction ?? 'Long',
     entrada:    e.entry  !== 0 ? String(e.entry)  : '',
     salida:     e.exit   !== 0 ? String(e.exit)   : '',
     stop:       e.stop   !== 0 ? String(e.stop)   : '',
@@ -216,7 +219,7 @@ export default function JournalPage() {
       const updated = await api.updateTrade(editingId, {
         date:           editForm.date,
         instrument:     editForm.instrument as Trade['instrument'],
-        direction:      'Long',
+        direction:      editForm.direction,
         entry:          parseFloat(editForm.entrada) || 0,
         stop:           parseFloat(editForm.stop) || 0,
         target:         0,
@@ -271,7 +274,7 @@ export default function JournalPage() {
       const newTrade = await api.addTrade(userId, {
         date:           form.date,
         instrument:     form.instrument as Trade['instrument'],
-        direction:      'Long',
+        direction:      form.direction,
         entry:          parseFloat(form.entrada) || 0,
         stop:           parseFloat(form.stop) || 0,
         target:         0,
@@ -336,6 +339,9 @@ export default function JournalPage() {
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 5, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', color: muted }}>
                 {e.instrument}
               </span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 5, background: (e.direction === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)') + '22', color: e.direction === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)' }}>
+                {(e.direction ?? 'Long').toUpperCase()}
+              </span>
               {e.rule_adherence && (
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 5, background: sesgoBadgeColor(e.rule_adherence) + '22', color: sesgoBadgeColor(e.rule_adherence) }}>
                   {e.rule_adherence.toUpperCase()}
@@ -385,7 +391,7 @@ export default function JournalPage() {
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input value={editForm.pnlText} onChange={(ev) => updEdit('pnlText', ev.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 90 }} />
                   <button
-                    onClick={() => { const v = calcPnl(editForm.instrument, editForm.entrada, editForm.salida, editForm.contratos); if (v) updEdit('pnlText', v) }}
+                    onClick={() => { const v = calcPnl(editForm.instrument, editForm.entrada, editForm.salida, editForm.contratos, editForm.direction); if (v) updEdit('pnlText', v) }}
                     title="Calcular desde entrada/salida"
                     style={{ height: 34, padding: '0 8px', background: surf2, border: `1px solid ${border}`, borderRadius: 7, color: muted, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                   >Calc</button>
@@ -412,6 +418,19 @@ export default function JournalPage() {
                 <select value={editForm.instrument} onChange={(ev) => updEdit('instrument', ev.target.value)} style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}>
                   {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
                 </select>
+              </div>
+              <div>
+                <div style={label11}>DIRECCIÓN</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Long', 'Short'] as const).map((d) => (
+                    <button key={d} onClick={() => updEdit('direction', d)} style={{
+                      padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      border: `1.5px solid ${editForm.direction === d ? (d === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)') : border}`,
+                      background: editForm.direction === d ? (d === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)') : surf2,
+                      color: editForm.direction === d ? '#0A0A0C' : muted,
+                    }}>{d}</button>
+                  ))}
+                </div>
               </div>
               <div style={{ minWidth: 60, maxWidth: 72 }}>
                 <div style={label11}>CONTRATOS</div>
@@ -564,7 +583,7 @@ export default function JournalPage() {
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input value={form.pnlText} onChange={(e) => upd('pnlText', e.target.value)} placeholder="+$320" style={{ ...inputStyle, width: 90 }} />
                 <button
-                  onClick={() => { const v = calcPnl(form.instrument, form.entrada, form.salida, form.contratos); if (v) upd('pnlText', v) }}
+                  onClick={() => { const v = calcPnl(form.instrument, form.entrada, form.salida, form.contratos, form.direction); if (v) upd('pnlText', v) }}
                   title="Calcular desde entrada/salida"
                   style={{ height: 34, padding: '0 8px', background: surf2, border: `1px solid ${border}`, borderRadius: 7, color: muted, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >Calc</button>
@@ -591,6 +610,19 @@ export default function JournalPage() {
               <select value={form.instrument} onChange={(e) => upd('instrument', e.target.value)} style={{ ...inputStyle, width: 'auto', paddingRight: 8 }}>
                 {INSTRUMENTS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
               </select>
+            </div>
+            <div>
+              <div style={label11}>DIRECCIÓN</div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {(['Long', 'Short'] as const).map((d) => (
+                  <button key={d} onClick={() => upd('direction', d)} style={{
+                    padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: `1.5px solid ${form.direction === d ? (d === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)') : border}`,
+                    background: form.direction === d ? (d === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)') : surf2,
+                    color: form.direction === d ? '#0A0A0C' : muted,
+                  }}>{d}</button>
+                ))}
+              </div>
             </div>
             <div style={{ minWidth: 60, maxWidth: 72 }}>
               <div style={label11}>CONTRATOS</div>
