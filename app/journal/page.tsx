@@ -233,7 +233,7 @@ export default function JournalPage() {
 
   // ── entry card (reused in both tabs) ──────────────────────────────────────
 
-  function EntryCard({ e }: { e: Trade }) {
+  function renderEntryCard(e: Trade) {
     const isOpen = openId === e.id
     const ref = unpackReflection(e.reflection)
     const dateLabel = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -314,7 +314,7 @@ export default function JournalPage() {
 
   // ── new entry form ────────────────────────────────────────────────────────
 
-  function EntryForm() {
+  function renderEntryForm() {
     return (
       <div style={{ ...card, marginBottom: 20 }}>
         <div style={{ padding: '16px 24px', borderBottom: `1px solid ${border}`, fontSize: 13, color: muted }}>
@@ -463,7 +463,7 @@ export default function JournalPage() {
       </div>
 
       {/* New entry form */}
-      {adding && <EntryForm />}
+      {adding && renderEntryForm()}
 
       {/* Tabs */}
       <div style={{
@@ -611,7 +611,7 @@ export default function JournalPage() {
                   Sin entradas para este día
                 </div>
               ) : (
-                dayEntries.map(e => <EntryCard key={e.id} e={e} />)
+                dayEntries.map(e => <div key={e.id}>{renderEntryCard(e)}</div>)
               )}
             </div>
           )}
@@ -665,7 +665,7 @@ export default function JournalPage() {
                           <span style={{ fontSize: 12, fontWeight: 700, color: pnlColor(wPnl, muted) }}>{formatPnl(wPnl)}</span>
                         )}
                       </div>
-                      {wEntries.map(e => <EntryCard key={e.id} e={e} />)}
+                      {wEntries.map(e => <div key={e.id}>{renderEntryCard(e)}</div>)}
                     </div>
                   )
                 })
