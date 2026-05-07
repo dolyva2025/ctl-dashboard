@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -12,6 +12,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isRecovery, setIsRecovery] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [resetDone, setResetDone] = useState(false)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setIsRecovery(true)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (newPassword.length < 6) { setError('Mínimo 6 caracteres.'); return }
+    setLoading(true)
+    setError('')
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setResetDone(true)
+    setTimeout(() => router.push('/'), 2000)
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -61,7 +83,41 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Password recovery card */}
+        {isRecovery && (
+          <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8 space-y-5">
+            {resetDone ? (
+              <div className="text-center space-y-2">
+                <div className="text-2xl">✓</div>
+                <p className="text-sm font-semibold text-zinc-900">Contraseña actualizada</p>
+                <p className="text-xs text-zinc-400">Entrando al dashboard...</p>
+              </div>
+            ) : (
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-base font-bold text-zinc-900">Nueva contraseña</h2>
+                  <p className="text-xs text-zinc-400">Elige una contraseña nueva para tu cuenta.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-zinc-700">Contraseña</label>
+                  <input
+                    type="password" placeholder="Mínimo 6 caracteres" minLength={6} required
+                    value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 transition"
+                  />
+                </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <button type="submit" disabled={loading}
+                  className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors">
+                  {loading ? 'Guardando...' : 'Guardar contraseña →'}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
         {/* Card */}
+        {!isRecovery && (
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8 space-y-5">
 
           {/* Tabs */}
@@ -134,6 +190,7 @@ export default function LoginPage() {
 
           <p className="text-xs text-zinc-400 text-center">Sin tarjeta de crédito. Solo trading.</p>
         </div>
+        )}
 
         <p className="text-center text-xs text-zinc-400">
           The Collective Trade Lab · En español · Futuros
