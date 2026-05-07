@@ -34,7 +34,8 @@ export default function LoginPage() {
     setLoading(false)
     if (error) { setError(error.message); return }
     setResetDone(true)
-    setTimeout(() => router.push('/'), 2000)
+    await supabase.auth.signOut()
+    setTimeout(() => { setIsRecovery(false); setResetDone(false); setNewPassword('') }, 2000)
   }
 
   async function handleForgotPassword(e: React.FormEvent) {
