@@ -15,6 +15,8 @@ export default function LoginPage() {
   const [isRecovery, setIsRecovery] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [resetDone, setResetDone] = useState(false)
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -33,6 +35,18 @@ export default function LoginPage() {
     if (error) { setError(error.message); return }
     setResetDone(true)
     setTimeout(() => router.push('/'), 2000)
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://app.collectivetradelab.com/login',
+    })
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setForgotSent(true)
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -137,7 +151,7 @@ export default function LoginPage() {
           </div>
 
           {/* Login form */}
-          {tab === 'login' && (
+          {tab === 'login' && !forgotMode && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-zinc-700">Correo electrónico</label>
@@ -146,7 +160,13 @@ export default function LoginPage() {
                   className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 transition" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-zinc-700">Contraseña</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-zinc-700">Contraseña</label>
+                  <button type="button" onClick={() => { setForgotMode(true); setError('') }}
+                    className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
+                    Olvidé mi contraseña
+                  </button>
+                </div>
                 <input type="password" placeholder="••••••••" required value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 transition" />
@@ -157,6 +177,43 @@ export default function LoginPage() {
                 {loading ? 'Entrando...' : 'Entrar →'}
               </button>
             </form>
+          )}
+
+          {/* Forgot password form */}
+          {tab === 'login' && forgotMode && (
+            forgotSent ? (
+              <div className="text-center space-y-3 py-2">
+                <div className="text-3xl">📬</div>
+                <p className="text-sm font-semibold text-zinc-900">Revisa tu correo</p>
+                <p className="text-xs text-zinc-400">Te enviamos un link para restablecer tu contraseña.</p>
+                <button onClick={() => { setForgotMode(false); setForgotSent(false); setError('') }}
+                  className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors underline">
+                  Volver al login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-bold text-zinc-900">Restablecer contraseña</h2>
+                  <p className="text-xs text-zinc-400">Ingresa tu correo y te enviamos un link.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-zinc-700">Correo electrónico</label>
+                  <input type="email" placeholder="tu@correo.com" required value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 transition" />
+                </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <button type="submit" disabled={loading}
+                  className="w-full bg-zinc-900 hover:bg-black disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors">
+                  {loading ? 'Enviando...' : 'Enviar link →'}
+                </button>
+                <button type="button" onClick={() => { setForgotMode(false); setError('') }}
+                  className="w-full text-xs text-zinc-400 hover:text-zinc-700 transition-colors">
+                  ← Volver al login
+                </button>
+              </form>
+            )
           )}
 
           {/* Signup form */}
