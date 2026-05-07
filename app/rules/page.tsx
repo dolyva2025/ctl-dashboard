@@ -48,7 +48,7 @@ function useT(isDark: boolean) {
         surface2:   'hsl(228 35% 14%)',
         border:     'hsl(228 30% 17%)',
         text:       'hsl(228 100% 95%)',
-        muted:      'hsl(228 30% 55%)',
+        muted:      'hsl(228 30% 70%)',
         inputBg:    'rgba(255,255,255,0.05)',
       }
     : {

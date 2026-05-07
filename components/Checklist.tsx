@@ -125,7 +125,7 @@ export function Checklist({ userId, date }: Props) {
   const surface  = isDark ? 'hsl(226 48% 11%)' : '#ffffff'
   const border   = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
   const text     = isDark ? 'hsl(228 100% 95%)' : '#09090b'
-  const muted    = isDark ? 'hsl(228 30% 55%)' : '#71717a'
+  const muted    = isDark ? 'hsl(228 30% 70%)' : '#71717a'
 
   const shadow   = isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.06)'
 

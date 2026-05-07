@@ -34,7 +34,7 @@ export default function RoutinePage() {
 
   const [date, setDate] = useState(todayDate())
 
-  const muted  = isDark ? 'hsl(228 30% 55%)' : '#71717a'
+  const muted  = isDark ? 'hsl(228 30% 70%)' : '#71717a'
   const text   = isDark ? 'hsl(228 100% 95%)' : '#09090b'
   const borderC = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
 

@@ -171,7 +171,7 @@ export default function JournalPage() {
 
   // Theme tokens
   const text    = isDark ? 'hsl(228 100% 95%)' : '#09090b'
-  const muted   = isDark ? 'hsl(228 30% 55%)' : '#71717a'
+  const muted   = isDark ? 'hsl(228 30% 70%)' : '#71717a'
   const border  = isDark ? 'hsl(228 30% 17%)' : '#e4e4e7'
   const surface = isDark ? 'hsl(226 48% 11%)' : '#ffffff'
   const surf2   = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
