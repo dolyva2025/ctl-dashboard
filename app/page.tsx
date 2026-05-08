@@ -100,9 +100,10 @@ export default function RoutinePage() {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600,
-              padding: '5px 12px', borderRadius: 8, textDecoration: 'none',
-              border: `1px solid ${borderC}`, color: muted,
+              display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700,
+              padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+              background: 'oklch(68% 0.19 42)', border: '1.5px solid oklch(68% 0.19 42)',
+              color: '#0A0A0C', letterSpacing: '0.03em',
               transition: 'all 0.15s',
             }}
           >
