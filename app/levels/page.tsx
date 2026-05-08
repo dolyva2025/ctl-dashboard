@@ -79,6 +79,10 @@ export default function LevelsPage() {
 
   // CTL weekly bias (for display at top)
   const [weeklyBias, setWeeklyBias] = useState<string>('')
+  // CTL daily bias pill
+  const [dailyCTLBias, setDailyCTLBias] = useState<string>('')
+  // User daily bias (localStorage)
+  const [userDailyBias, setUserDailyBias] = useState<string>('')
 
   // Personal plan state
   const [userLevels, setUserLevels] = useState<Level[]>([])
@@ -89,14 +93,11 @@ export default function LevelsPage() {
   const [savingLevel, setSavingLevel] = useState(false)
 
   const [setups, setSetups] = useState<Setup[]>([])
-  const [planNotes, setPlanNotes] = useState('')
-  const [notesSaved, setNotesSaved] = useState(false)
 
   // User weekly analysis (localStorage)
   const [userWeekly, setUserWeekly] = useState<UserWeeklyAnalysis>(emptyWeekly())
   const [weeklySaved, setWeeklySaved] = useState(false)
 
-  const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const weeklyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const today = new Date()
@@ -110,17 +111,27 @@ export default function LevelsPage() {
     })
   }, [sundayStr])
 
+  // Load CTL daily bias for pill in DIARIOS header
+  useEffect(() => {
+    getCTLBias(date).then((data) => {
+      setDailyCTLBias(data?.bias ?? '')
+    })
+  }, [date])
+
+  // Load user daily bias from localStorage
+  useEffect(() => {
+    setUserDailyBias(lsGet<string>(lsKey('daily_bias', date), ''))
+  }, [date])
+
   // Load user levels from DB
   useEffect(() => {
     if (!user) return
     api.getLevels(user.id, date).then(setUserLevels)
   }, [user, date])
 
-  // Load setups + notes from localStorage
+  // Load setups from localStorage
   useEffect(() => {
     setSetups(lsGet<Setup[]>(lsKey('setups', date), []))
-    setPlanNotes(lsGet<string>(lsKey('notes', date), ''))
-    setNotesSaved(false)
   }, [date])
 
   // Load user weekly analysis from localStorage
@@ -221,15 +232,7 @@ export default function LevelsPage() {
     lsSet(lsKey('setups', date), next)
   }
 
-  function handleNotesChange(val: string) {
-    setPlanNotes(val)
-    setNotesSaved(false)
-    if (notesTimer.current) clearTimeout(notesTimer.current)
-    notesTimer.current = setTimeout(() => {
-      lsSet(lsKey('notes', date), val)
-      setNotesSaved(true)
-    }, 800)
-  }
+
 
   function handleWeeklyChange(key: keyof UserWeeklyAnalysis, val: string) {
     const next = { ...userWeekly, [key]: val }
@@ -240,6 +243,19 @@ export default function LevelsPage() {
       lsSet(lsKey('user_weekly', sundayStr), next)
       setWeeklySaved(true)
     }, 800)
+  }
+
+  function handleDailyBiasChange(val: string) {
+    const next = userDailyBias === val ? '' : val
+    setUserDailyBias(next)
+    lsSet(lsKey('daily_bias', date), next)
+  }
+
+  function biasColorFor(b: string) {
+    if (b === 'Alcista') return 'oklch(72% 0.18 155)'
+    if (b === 'Bajista') return 'oklch(65% 0.18 25)'
+    if (b === 'Neutral') return 'oklch(70% 0.17 240)'
+    return 'oklch(70% 0.17 240)'
   }
 
   // ── level type color ─────────────────────────────────────────────────────────
@@ -364,6 +380,19 @@ export default function LevelsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>NIVELES DIARIOS</span>
               <div style={{ flex: 1, height: 1, background: t.border }} />
+              {dailyCTLBias && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '4px 12px', borderRadius: 20,
+                  background: `${biasColorFor(dailyCTLBias)}20`,
+                  border: `1px solid ${biasColorFor(dailyCTLBias)}50`,
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: biasColorFor(dailyCTLBias) }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: biasColorFor(dailyCTLBias) }}>
+                    {dailyCTLBias.toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div style={card}>
@@ -430,7 +459,7 @@ export default function LevelsPage() {
 
                 {/* Bias buttons */}
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 8 }}>SESGO SEMANAL</div>
+                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 8 }}>BIAS SEMANAL</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[
                       { label: '▲ Alcista', value: 'Alcista', color: 'oklch(72% 0.18 155)' },
@@ -456,7 +485,6 @@ export default function LevelsPage() {
                 {([
                   ['SETUP PRINCIPAL', 'setup', '¿Qué setup estás buscando esta semana?'],
                   ['NIVELES CLAVE', 'key_levels', 'Los niveles más importantes de la semana...'],
-                  ['QUÉ EVITAR', 'avoid', 'Condiciones en las que no debes operar esta semana...'],
                   ['NOTAS LIBRES', 'notes', 'Contexto macro, noticias, observaciones...'],
                 ] as const).map(([label, key, ph]) => (
                   <div key={key} style={{ marginBottom: 14 }}>
@@ -479,57 +507,108 @@ export default function LevelsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: t.muted }}>NIVELES DIARIOS</span>
               <div style={{ flex: 1, height: 1, background: t.border }} />
+              {userDailyBias && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '4px 12px', borderRadius: 20,
+                  background: `${biasColorFor(userDailyBias)}20`,
+                  border: `1px solid ${biasColorFor(userDailyBias)}50`,
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: biasColorFor(userDailyBias) }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: biasColorFor(userDailyBias) }}>
+                    {userDailyBias.toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Mis Niveles Clave */}
+            {/* Merged: Bias + Niveles Clave + Setups */}
             <div style={card}>
-              <div style={{ padding: '12px 20px', background: `${ACCENT}1a`, borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT }} />
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: ACCENT }}>MIS NIVELES CLAVE</span>
+              {/* Card header */}
+              <div style={{ padding: '12px 20px', background: `${ACCENT}1a`, borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: ACCENT }}>PLAN DIARIO</span>
+                </div>
+                <button onClick={addSetup} style={{
+                  background: 'transparent', border: `1px solid ${t.border}`,
+                  color: t.muted, borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
+                }}>+ Setup</button>
               </div>
-              {/* Add form */}
-              <div style={{ padding: '12px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>INSTRUMENTO</div>
-                  <select value={addInstrument} onChange={(e) => setAddInstrument(e.target.value as Instrument)} style={{ ...selectStyle, width: 74 }}>
-                    {INSTRUMENTS.map((ins) => <option key={ins}>{ins}</option>)}
-                  </select>
+
+              <div style={{ padding: '16px 20px' }}>
+                {/* Daily Bias selector */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 8 }}>BIAS DIARIO</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[
+                      { label: '▲ Alcista', value: 'Alcista', color: 'oklch(72% 0.18 155)' },
+                      { label: '▼ Bajista', value: 'Bajista', color: 'oklch(65% 0.18 25)' },
+                      { label: '— Neutral', value: 'Neutral', color: 'oklch(70% 0.17 240)' },
+                    ].map(({ label, value, color }) => (
+                      <button
+                        key={value}
+                        onClick={() => handleDailyBiasChange(value)}
+                        style={{
+                          padding: '7px 16px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          background: userDailyBias === value ? color : t.surf2,
+                          border: `1.5px solid ${userDailyBias === value ? color : t.border}`,
+                          color: userDailyBias === value ? '#0A0A0C' : t.text,
+                          transition: 'all 0.15s',
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>NIVEL CLAVE</div>
-                  <input type="number" step="0.25" placeholder="ej. 5250.00"
-                    value={addPrice} onChange={(e) => setAddPrice(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
-                    style={{ ...inputStyle, width: 110 }} />
+
+                {/* Divider */}
+                <div style={{ height: 1, background: t.border, marginBottom: 16 }} />
+
+                {/* Add level form */}
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 8 }}>NIVELES CLAVE</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>INSTRUMENTO</div>
+                    <select value={addInstrument} onChange={(e) => setAddInstrument(e.target.value as Instrument)} style={{ ...selectStyle, width: 74 }}>
+                      {INSTRUMENTS.map((ins) => <option key={ins}>{ins}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>PRECIO</div>
+                    <input type="number" step="0.25" placeholder="ej. 5250.00"
+                      value={addPrice} onChange={(e) => setAddPrice(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
+                      style={{ ...inputStyle, width: 110 }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>TIPO</div>
+                    <select value={addType} onChange={(e) => setAddType(e.target.value as LevelType)} style={{ ...selectStyle, width: 130 }}>
+                      {LEVEL_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>NOTAS</div>
+                    <input placeholder="Contexto del nivel..."
+                      value={addNotes} onChange={(e) => setAddNotes(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
+                      style={inputStyle} />
+                  </div>
+                  <button onClick={handleAddLevel} disabled={savingLevel} style={{
+                    height: 34, padding: '0 16px', background: ACCENT, border: 'none',
+                    borderRadius: 8, color: '#0A0A0C', fontWeight: 700, fontSize: 13,
+                    cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                  }}>
+                    {savingLevel ? '...' : '+ Agregar'}
+                  </button>
                 </div>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>TIPO</div>
-                  <select value={addType} onChange={(e) => setAddType(e.target.value as LevelType)} style={{ ...selectStyle, width: 130 }}>
-                    {LEVEL_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </div>
-                <div style={{ flex: 1, minWidth: 120 }}>
-                  <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 4 }}>NOTAS</div>
-                  <input placeholder="Contexto del nivel..."
-                    value={addNotes} onChange={(e) => setAddNotes(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddLevel()}
-                    style={inputStyle} />
-                </div>
-                <button onClick={handleAddLevel} disabled={savingLevel} style={{
-                  height: 34, padding: '0 16px', background: ACCENT, border: 'none',
-                  borderRadius: 8, color: '#0A0A0C', fontWeight: 700, fontSize: 13,
-                  cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                }}>
-                  {savingLevel ? '...' : '+ Agregar'}
-                </button>
-              </div>
-              <div style={{ padding: '14px 20px' }}>
+
+                {/* Levels list */}
                 {userLevels.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px 0', color: t.muted, fontSize: 13 }}>
+                  <div style={{ textAlign: 'center', padding: '12px 0 16px', color: t.muted, fontSize: 13 }}>
                     Agrega tus niveles clave del día
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '140px 90px 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '140px 90px 1fr auto', gap: 8, alignItems: 'center', marginBottom: 16 }}>
                     {['INSTRUMENTO · TIPO', 'PRECIO', 'NOTAS', ''].map((h) => (
                       <div key={h} style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', paddingBottom: 6 }}>{h}</div>
                     ))}
@@ -556,24 +635,14 @@ export default function LevelsPage() {
                     })}
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Setups Planeados */}
-            <div style={card}>
-              <div style={{ padding: '12px 20px', background: 'oklch(70% 0.17 240 / 0.12)', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'oklch(70% 0.17 240)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'oklch(70% 0.17 240)' }}>SETUPS PLANEADOS</span>
-                </div>
-                <button onClick={addSetup} style={{
-                  background: 'transparent', border: '1px solid oklch(70% 0.17 240 / 0.4)',
-                  color: 'oklch(70% 0.17 240)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
-                }}>+ Setup</button>
-              </div>
-              <div style={{ padding: 14 }}>
+                {/* Divider before setups */}
+                <div style={{ height: 1, background: t.border, marginBottom: 16 }} />
+
+                {/* Setups */}
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 10 }}>SETUPS PLANEADOS</div>
                 {setups.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px 0', color: t.muted, fontSize: 13 }}>
+                  <div style={{ textAlign: 'center', padding: '12px 0', color: t.muted, fontSize: 13 }}>
                     Agrega los setups que estás planeando operar
                   </div>
                 ) : setups.map((s) => (
@@ -602,21 +671,6 @@ export default function LevelsPage() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Notes */}
-            <div style={{ ...card, padding: 20 }}>
-              <div style={{ fontSize: 11, color: t.muted, letterSpacing: '0.08em', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>NOTAS GENERALES</span>
-                {notesSaved && <span style={{ color: 'oklch(72% 0.18 155)', fontSize: 11 }}>✓ Guardado</span>}
-              </div>
-              <textarea
-                value={planNotes}
-                onChange={(e) => handleNotesChange(e.target.value)}
-                placeholder="Observaciones adicionales del mercado, contexto macro, catalizadores..."
-                rows={3}
-                style={{ ...taStyle, minHeight: 80 }}
-              />
             </div>
           </div>
         </div>

@@ -22,7 +22,6 @@ const QUESTIONS: Question[] = [
   { icon: '🧘', category: 'ESTADO MENTAL', text: '¿Hicimos meditación o alguna práctica para relajar la mente?',              type: 'yesno' },
   { icon: '📈', category: 'PREPARACIÓN',   text: '¿Hicimos Market Prep esta mañana?',                                          type: 'yesno' },
   { icon: '🎯', category: 'PREPARACIÓN',   text: '¿Tenemos una visión clara y niveles de entrada y salida para hoy?',         type: 'yesno' },
-  { icon: '📉', category: 'MERCADO',       text: '¿Cómo describes la estructura técnica actual del mercado?',                 type: 'options', options: ['Trending Up', 'Trending Down', 'Consolidación', 'Distribución', 'Acumulación', 'Sin claridad'] },
   { icon: '📅', category: 'PREPARACIÓN',   text: '¿Revisaste el calendario económico y estás al tanto de los eventos de hoy?', type: 'yesno' },
 ]
 

@@ -144,7 +144,7 @@ function RuleRow({
       }}>
         {r.rule}
       </span>
-      {!showCheck && onRemove && (
+      {onRemove && (
         <button
           onClick={(e) => { e.stopPropagation(); onRemove() }}
           style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', fontSize: 18, padding: '0 2px', flexShrink: 0, opacity: 0.6, lineHeight: 1 }}
@@ -260,8 +260,6 @@ export default function RulesPage() {
   const isDark = theme === 'navy'
   const t = useT(isDark)
 
-  const [tab, setTab] = useState<'hoy' | 'reglas' | 'colectivas'>('hoy')
-  const [ruleSource, setRuleSource] = useState<'all' | 'ctl' | 'mias'>('all')
   const [ctlRules, setCtlRules]     = useState<Rule[]>([])
   const [userRules, setUserRules]   = useState<Rule[]>([])
   const [checks, setChecks]         = useState<Record<string, boolean>>({})
@@ -296,11 +294,8 @@ export default function RulesPage() {
   const fixedFlat: FlatRule[] = FIXED_RULES.map((r) => ({ ...r, ruleKey: r.id }))
   const ctlFlat: FlatRule[]   = ctlRules.map((r) => ({ id: r.id, ruleKey: `ctl-${r.id}`, category: r.category, rule: r.rule }))
   const userFlat: FlatRule[]  = userRules.map((r) => ({ id: r.id, ruleKey: `user-${r.id}`, category: r.category, rule: r.rule }))
-  const allRules = ruleSource === 'ctl'
-    ? [...fixedFlat, ...ctlFlat]
-    : ruleSource === 'mias'
-    ? [...userFlat]
-    : [...fixedFlat, ...ctlFlat, ...userFlat]
+  const allRules = [...fixedFlat, ...ctlFlat, ...userFlat]
+  const ctlAllRules = [...fixedFlat, ...ctlFlat]
 
   const followedCount = allRules.filter((r) => checks[r.ruleKey]).length
   const pct = allRules.length > 0 ? Math.round((followedCount / allRules.length) * 100) : 0
@@ -382,143 +377,82 @@ export default function RulesPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{
-        display: 'flex', gap: 2,
-        background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-        borderRadius: 10, padding: 4, marginBottom: 24, width: 'fit-content',
-      }}>
-        {([['hoy', 'Sesión de Hoy'], ['reglas', 'Mis Reglas'], ['colectivas', 'Reglas CTL']] as const).map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            style={{
-              padding: '7px 18px', borderRadius: 7, fontSize: 13,
-              fontWeight: tab === id ? 600 : 400, cursor: 'pointer', border: 'none',
-              background: tab === id ? (isDark ? 'rgba(255,255,255,0.1)' : '#fff') : 'transparent',
-              color: tab === id ? t.text : t.muted,
-              boxShadow: tab === id && !isDark ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s',
-            }}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Progress summary */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, marginBottom: 24 }}>
+        <ProgressRing pct={pct} isDark={isDark} />
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, color: t.text }}>
+            {followedCount} / {allRules.length} reglas seguidas hoy
+          </div>
+          <div style={{ fontSize: 13, color: t.muted }}>
+            {pct === 100 ? '🎯 Sesión perfecta — disciplina completa' :
+             pct >= 70  ? '💪 Buen trabajo, sigue así' :
+             pct >= 40  ? 'Vas bien, queda camino' :
+                          'Marca las reglas que aplicaron hoy'}
+          </div>
+        </div>
       </div>
 
-      {/* ── Tab: Sesión de Hoy ──────────────────────────────────────────── */}
-      {tab === 'hoy' && (
-        <div>
-          {/* Rule source toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 11, color: t.muted, letterSpacing: '0.06em' }}>MOSTRAR</span>
-            <div style={{
-              display: 'flex', gap: 2,
-              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-              borderRadius: 8, padding: 3,
-            }}>
-              {([['all', 'Todas'], ['ctl', 'CTL'], ['mias', 'Mis Reglas']] as const).map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => setRuleSource(id)}
-                  style={{
-                    padding: '5px 14px', borderRadius: 6, fontSize: 12,
-                    fontWeight: ruleSource === id ? 600 : 400, cursor: 'pointer', border: 'none',
-                    background: ruleSource === id ? (isDark ? 'rgba(255,255,255,0.1)' : '#fff') : 'transparent',
-                    color: ruleSource === id ? t.text : t.muted,
-                    boxShadow: ruleSource === id && !isDark ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                    transition: 'all 0.15s',
-                  }}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Progress summary */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, ...card, marginBottom: 16 }}>
-            <ProgressRing pct={pct} isDark={isDark} />
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4, color: t.text }}>
-                {followedCount} / {allRules.length} reglas seguidas
-              </div>
-              <div style={{ fontSize: 13, color: t.muted }}>
-                {pct === 100 ? '🎯 Sesión perfecta — disciplina completa' :
-                 pct >= 70  ? '💪 Buen trabajo, sigue así' :
-                 pct >= 40  ? 'Vas bien, queda camino' :
-                              'Marca las reglas que aplicaron hoy'}
-              </div>
-            </div>
-          </div>
-
-          {/* All rules checklist */}
-          <div style={card}>
-            {allRules.length === 0
-              ? <div style={{ textAlign: 'center', padding: '32px 0', color: t.muted, fontSize: 13 }}>
-                  No hay reglas aún — añade desde las otras pestañas
-                </div>
-              : <CategoryGroup
-                  rules={allRules}
-                  checks={checks}
-                  onToggle={handleToggle}
-                  showCheck={true}
-                  t={t}
-                  isDark={isDark}
-                />
-            }
-          </div>
+      {/* ── Reglas CTL ──────────────────────────────────────────────────── */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: t.muted, letterSpacing: '0.08em', fontWeight: 700 }}>REGLAS CTL</div>
+          <span style={{ fontSize: 11, color: t.muted }}>
+            {ctlAllRules.filter((r) => checks[r.ruleKey]).length} / {ctlAllRules.length}
+          </span>
         </div>
-      )}
-
-      {/* ── Tab: Mis Reglas ─────────────────────────────────────────────── */}
-      {tab === 'reglas' && (
-        <div style={card}>
-          <div style={{ fontSize: 11, color: t.muted, letterSpacing: '0.08em', marginBottom: 16 }}>TUS REGLAS PERSONALES</div>
+        {adminUser && (
           <AddForm
-            value={newUserText} onChange={setNewUserText}
-            cat={newUserCat} onCat={setNewUserCat}
-            onAdd={handleAddUserRule}
-            placeholder="Escribe tu regla personal..."
+            value={newCtlText} onChange={setNewCtlText}
+            cat={newCtlCat} onCat={setNewCtlCat}
+            onAdd={handleAddCtlRule}
+            placeholder="Escribe la regla colectiva..."
             t={t} isDark={isDark}
           />
-          {userFlat.length === 0
-            ? <div style={{ textAlign: 'center', padding: '24px 0', color: t.muted, fontSize: 13 }}>
-                Agrega tu primera regla personal
-              </div>
-            : <CategoryGroup
-                rules={userFlat}
-                checks={{}}
-                onRemove={handleDeleteUserRule}
-                showCheck={false}
-                t={t}
-                isDark={isDark}
-              />
-          }
-        </div>
-      )}
+        )}
+        <CategoryGroup
+          rules={ctlAllRules}
+          checks={checks}
+          onToggle={handleToggle}
+          onRemove={adminUser ? handleDeleteCtlRule : undefined}
+          showCheck={true}
+          t={t}
+          isDark={isDark}
+        />
+      </div>
 
-      {/* ── Tab: Colectivas CTL ─────────────────────────────────────────── */}
-      {tab === 'colectivas' && (
-        <div style={card}>
-          <div style={{ fontSize: 11, color: t.muted, letterSpacing: '0.08em', marginBottom: 16 }}>REGLAS PUBLICADAS PARA EL CANAL</div>
-          {adminUser && (
-            <AddForm
-              value={newCtlText} onChange={setNewCtlText}
-              cat={newCtlCat} onCat={setNewCtlCat}
-              onAdd={handleAddCtlRule}
-              placeholder="Escribe la regla colectiva..."
-              t={t} isDark={isDark}
-            />
+      {/* ── Mis Reglas ──────────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: t.muted, letterSpacing: '0.08em', fontWeight: 700 }}>MIS REGLAS</div>
+          {userFlat.length > 0 && (
+            <span style={{ fontSize: 11, color: t.muted }}>
+              {userFlat.filter((r) => checks[r.ruleKey]).length} / {userFlat.length}
+            </span>
           )}
-          <CategoryGroup
-            rules={[...fixedFlat, ...ctlFlat]}
-            checks={{}}
-            onRemove={adminUser ? handleDeleteCtlRule : undefined}
-            showCheck={false}
-            t={t}
-            isDark={isDark}
-          />
         </div>
-      )}
+        <AddForm
+          value={newUserText} onChange={setNewUserText}
+          cat={newUserCat} onCat={setNewUserCat}
+          onAdd={handleAddUserRule}
+          placeholder="Escribe tu regla personal..."
+          t={t} isDark={isDark}
+        />
+        {userFlat.length === 0
+          ? <div style={{ textAlign: 'center', padding: '16px 0', color: t.muted, fontSize: 13 }}>
+              Agrega tu primera regla personal
+            </div>
+          : <CategoryGroup
+              rules={userFlat}
+              checks={checks}
+              onToggle={handleToggle}
+              onRemove={handleDeleteUserRule}
+              showCheck={true}
+              t={t}
+              isDark={isDark}
+            />
+        }
+      </div>
     </div>
   )
 }

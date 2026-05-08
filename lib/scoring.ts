@@ -13,14 +13,12 @@ export type ScoringResult = {
 
 // Indices of questions that count toward the score
 // Non-scored (informational): 1 (session result)
-const SCORED: number[] = [0, 2, 3, 4, 5, 6, 7, 8]
+const SCORED: number[] = [0, 2, 3, 4, 5, 6, 7]
 
 function isPositive(idx: number, answer: string | null): boolean {
   if (answer === null) return false
   // Q2 (sleep): Bien or Regular = positive, Mal = negative
   if (idx === 2) return answer === 'Bien' || answer === 'Regular'
-  // Q7 (market structure): any clear structure = positive, Sin claridad = negative
-  if (idx === 7) return answer !== 'Sin claridad'
   return answer === 'yes'
 }
 
@@ -43,7 +41,7 @@ export function scoreRoutine(routine: DailyRoutine): ScoringResult {
     0,
   )
 
-  if (score >= 7) {
+  if (score >= 6) {
     return {
       score,
       total,
@@ -54,7 +52,7 @@ export function scoreRoutine(routine: DailyRoutine): ScoringResult {
     }
   }
 
-  if (score >= 5) {
+  if (score >= 4) {
     return {
       score,
       total,
