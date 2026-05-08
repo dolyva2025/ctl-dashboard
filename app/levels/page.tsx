@@ -602,11 +602,11 @@ export default function LevelsPage() {
             </div>
 
             <div style={card}>
-              <div style={{ padding: '12px 20px', background: `${ACCENT}1a`, borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT }} />
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: ACCENT }}>
-                  COLLECTIVE TRADE LAB — {new Date(date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
-                </span>
+              <div style={{ padding: '12px 20px', background: `${ACCENT}1a`, borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: ACCENT }}>PLAN DIARIO</span>
+                </div>
               </div>
 
               <div style={{ padding: '16px 20px' }}>
@@ -628,7 +628,13 @@ export default function LevelsPage() {
                   handleAddCTLLevel,
                   ctlSaving,
                 )}
-                <LevelsGrid levels={ctlLevels} onDelete={handleDeleteCTLLevel} t={t} readOnly={!admin} />
+                {ctlLevels.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '12px 0 16px', color: t.muted, fontSize: 13 }}>
+                    {admin ? 'Agrega los niveles clave del día' : 'Sin niveles publicados para este día'}
+                  </div>
+                ) : (
+                  <LevelsGrid levels={ctlLevels} onDelete={handleDeleteCTLLevel} t={t} readOnly={!admin} />
+                )}
               </div>
             </div>
           </div>
