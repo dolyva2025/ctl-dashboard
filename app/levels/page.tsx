@@ -607,6 +607,10 @@ export default function LevelsPage() {
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: ACCENT }} />
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: ACCENT }}>PLAN DIARIO</span>
                 </div>
+                <button onClick={addSetup} style={{
+                  background: 'transparent', border: `1px solid ${t.border}`,
+                  color: t.muted, borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
+                }}>+ Setup</button>
               </div>
 
               <div style={{ padding: '16px 20px' }}>
@@ -635,6 +639,40 @@ export default function LevelsPage() {
                 ) : (
                   <LevelsGrid levels={ctlLevels} onDelete={handleDeleteCTLLevel} t={t} readOnly={!admin} />
                 )}
+
+                <div style={{ height: 1, background: t.border, marginBottom: 16 }} />
+
+                {/* Setups (personal, same as Mi Análisis) */}
+                <div style={{ fontSize: 10, color: t.muted, letterSpacing: '0.07em', marginBottom: 10 }}>SETUPS PLANEADOS</div>
+                {setups.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '12px 0', color: t.muted, fontSize: 13 }}>
+                    Agrega los setups que estás planeando operar
+                  </div>
+                ) : setups.map((s) => (
+                  <div key={s.id} style={{ background: t.surf2, borderRadius: 10, padding: '14px 16px', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input value={s.ticker} onChange={(e) => updateSetup(s.id, 'ticker', e.target.value)} placeholder="Ticker" style={{ ...inputStyle, width: 80 }} />
+                      {(['Long', 'Short'] as const).map((dir) => (
+                        <button key={dir} onClick={() => updateSetup(s.id, 'direction', s.direction === dir ? '' : dir)} style={{
+                          padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
+                          background: s.direction === dir ? (dir === 'Long' ? 'oklch(72% 0.18 155)' : 'oklch(65% 0.18 25)') : t.surf2,
+                          color: s.direction === dir ? '#0A0A0C' : t.muted,
+                        }}>{dir === 'Long' ? '▲ Long' : '▼ Short'}</button>
+                      ))}
+                      <button onClick={() => deleteSetup(s.id)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                      {([['ENTRADA', 'entry', 'ej. 5250.25'], ['STOP', 'stop', 'ej. 5245.00'], ['TARGET', 'target', 'ej. 5262.50']] as const).map(([label, key, ph]) => (
+                        <div key={key}>
+                          <div style={{ fontSize: 10, color: t.muted, marginBottom: 4 }}>{label}</div>
+                          <input value={s[key]} onChange={(e) => updateSetup(s.id, key, e.target.value)} placeholder={ph} style={inputStyle} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 10, color: t.muted, marginBottom: 4 }}>NOTAS</div>
+                    <input value={s.notes} onChange={(e) => updateSetup(s.id, 'notes', e.target.value)} placeholder="Descripción del setup, condiciones de entrada..." style={inputStyle} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
